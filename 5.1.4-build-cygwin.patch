@@ -1,0 +1,35 @@
+--- origsrc/lua-5.1.4/Makefile	2008-08-11 19:40:48.000000000 -0500
++++ src/lua-5.1.4/Makefile	2008-11-06 10:31:52.959139100 -0600
+@@ -38,7 +38,7 @@
+ # == END OF USER SETTINGS. NO NEED TO CHANGE ANYTHING BELOW THIS LINE =========
+ 
+ # Convenience platforms targets.
+-PLATS= aix ansi bsd freebsd generic linux macosx mingw posix solaris
++PLATS= aix ansi bsd cygwin freebsd generic linux macosx mingw posix solaris
+ 
+ # What to install.
+ TO_BIN= lua luac
+--- origsrc/lua-5.1.4/src/Makefile	2008-01-19 13:37:58.000000000 -0600
++++ src/lua-5.1.4/src/Makefile	2008-11-06 10:31:52.974764100 -0600
+@@ -20,7 +20,7 @@
+ 
+ # == END OF USER SETTINGS. NO NEED TO CHANGE ANYTHING BELOW THIS LINE =========
+ 
+-PLATS= aix ansi bsd freebsd generic linux macosx mingw posix solaris
++PLATS= aix ansi bsd cygwin freebsd generic linux macosx mingw posix solaris
+ 
+ LUA_A=	liblua.a
+ CORE_O=	lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o lmem.o \
+@@ -109,6 +109,12 @@
+ 	"MYCFLAGS=-DLUA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" lua.exe
+ 	$(MAKE) "LUAC_T=luac.exe" luac.exe
+ 
++cygwin:
++	$(MAKE) "LUA_A=cyglua-5.1.dll" "LUA_T=lua.exe" "RANLIB=:" \
++	"AR=$(CC) -shared -Wl,--enable-auto-image-base -Wl,--enable-auto-import -Wl,--out-implib,liblua.dll.a -o" \
++	"MYCFLAGS=-DLUA_USE_CYGWIN" "MYLIBS=-lreadline -lhistory" lua.exe
++	$(MAKE) "LUAC_T=luac.exe" luac.exe
++
+ posix:
+ 	$(MAKE) all MYCFLAGS=-DLUA_USE_POSIX
+ 

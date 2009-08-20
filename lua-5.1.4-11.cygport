@@ -1,0 +1,51 @@
+DESCRIPTION="Lua programming language interpreter"
+HOMEPAGE="http://www.lua.org/"
+SRC_URI="http://www.lua.org/ftp/${P}.tar.gz"
+PATCH_URI="
+	mirror://portage/dev-lang/lua/files/${P}-test.patch
+	5.1.4-build-cygwin.patch
+	5.1.4-prefix-usr.patch
+	5.1.4-luaconf_h.patch
+"
+
+src_compile() {
+	lndirs
+	cd ${B}
+	cygmake -j1 cygwin CC="${CC}" MYLDFLAGS="${LDFLAGS}"
+	cygmake -j1 -C src liblua.a
+}
+
+src_install() {
+	local slot=${PV_MAJ_MIN}
+
+	cd ${B}
+	make install \
+		TO_BIN="lua.exe luac.exe" \
+		INSTALL_TOP=${D}/usr \
+		INSTALL_MAN=${D}/usr/share/man/man1 \
+		INSTALL_EXEC="install -m755" \
+		INSTALL_DATA="install -m644"
+#		INSTALL_INC=${D}/usr/include/lua${slot} \
+
+	dobin src/cyglua*.dll
+	dolib src/liblua.dll.a
+
+	insinto /usr/lib/pkgconfig
+	doins etc/lua.pc
+
+	keepdir /usr/{lib,share}/lua/${slot}
+
+	mv ${D}/usr/lib/liblua{,${slot}}.a
+	mv ${D}/usr/lib/liblua{,${slot}}.dll.a
+	dosym liblua${slot}.a /usr/lib/liblua.a
+	dosym liblua${slot}.dll.a /usr/lib/liblua.dll.a
+
+#	check_prog_req rename util-linux
+#	rename .exe ${slot}.exe ${D}/usr/bin/*.exe
+#	rename lua. lua${slot}. ${D}/usr/lib/liblua.* ${D}/usr/lib/pkgconfig/lua.pc
+#	rename lua.1 lua${slot}.1 ${D}/usr/share/man/man1/lua.1
+#	rename luac.1 luac${slot}.1 ${D}/usr/share/man/man1/luac.1
+
+	docinto html
+	dodoc ${S}/doc/*.{css,gif,html}
+}
