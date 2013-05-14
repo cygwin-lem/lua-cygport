@@ -1,24 +1,6 @@
 --- origsrc/lua-5.1.4/src/luaconf.h	2008-02-11 10:25:08.000000000 -0600
 +++ src/lua-5.1.4/src/luaconf.h	2008-11-06 10:31:52.990389100 -0600
-@@ -44,6 +44,17 @@
- #define LUA_DL_DYLD		/* does not need extra library */
- #endif
- 
-+/*
-+** CYGWIN doesn't use LUA_USE_POSIX because of LUA_USE_ULONGJMP
-+*/
-+#if defined(LUA_USE_CYGWIN)
-+#define LUA_USE_MKSTEMP
-+#define LUA_USE_ISATTY
-+#define LUA_USE_POPEN
-+#define LUA_USE_DLOPEN
-+#define LUA_USE_READLINE	/* needs some extra libraries */
-+#endif
-+
- 
- 
- /*
-@@ -93,6 +104,16 @@
+@@ -93,6 +93,16 @@
  #define LUA_CPATH_DEFAULT \
  	".\\?.dll;"  LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
  
