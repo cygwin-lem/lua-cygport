@@ -1,5 +1,5 @@
 NAME="lua"
-VERSION=5.1.5
+VERSION=5.2.4
 RELEASE=1
 CATEGORY="Interpreters"
 SUMMARY="Lua programming language interpreter"
@@ -9,9 +9,12 @@ stand-alone language."
 HOMEPAGE="http://www.lua.org/"
 SRC_URI="http://www.lua.org/ftp/lua-${VERSION}.tar.gz"
 PATCH_URI="
-	5.1.4-prefix-usr.patch
-	5.1.4-luaconf_h.patch
+	5.2.4-luaconf_h.patch
 "
+
+PKG_NAMES="lua lua-devel"
+lua_CONTENTS="usr/bin/ usr/lib/lua/ usr/share/"
+lua_devel_CONTENTS="usr/include/ usr/lib/liblua*.dll.a usr/lib/pkgconfig/"
 
 src_compile() {
 	lndirs
@@ -28,7 +31,7 @@ src_compile() {
 }
 
 src_install() {
-	local slot=${PV_MAJ_MIN}
+	local slot=${VERSION%\.*}
 
 	cd ${B}
 	cyginstall \
@@ -39,11 +42,35 @@ src_install() {
 		INSTALL_EXEC="install -m755" \
 		INSTALL_DATA="install -m644"
 
-	dopkgconfig etc/lua.pc
+	dodir /usr/lib/pkgconfig
+	cat > ${D}/usr/lib/pkgconfig/lua.pc <<_EOF
+V=${VERSION%\.*}
+R=${VERSION}
+
+prefix=/usr
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+INSTALL_BIN=\${prefix}/bin
+INSTALL_INC=\${prefix}/include
+INSTALL_LIB=\${prefix}/lib
+INSTALL_MAN=\${prefix}/share/man/man1
+INSTALL_LMOD=\${prefix}/share/lua/\${V}
+INSTALL_CMOD=\${prefix}/lib/lua/\${V}
+
+Name: Lua
+Description: An Extensible Extension Language
+Version: \${R}
+Requires:
+Libs: -L\${libdir} -llua
+Cflags: -I\${includedir}
+_EOF
 
 	keepdir /usr/{lib,share}/lua/${slot}
 
-	dosym liblua.dll.a /usr/lib/liblua${slot}.dll.a
+	dosym lua.pc /usr/lib/pkgconfig/lua-${slot}.pc
+	dosym liblua.dll.a /usr/lib/liblua-${slot}.dll.a
 
 	docinto html
 	dodoc ${S}/doc/*.{css,gif,html}
