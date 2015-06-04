@@ -1,6 +1,6 @@
-NAME="lua"
+NAME="lua5.1"
 VERSION=5.1.5
-RELEASE=1
+RELEASE=2
 CATEGORY="Interpreters"
 SUMMARY="Lua programming language interpreter"
 DESCRIPTION="Lua is a powerful, light-weight programming language designed
@@ -8,21 +8,27 @@ for extending applications. Lua is also frequently used as a general-purpose,
 stand-alone language."
 HOMEPAGE="http://www.lua.org/"
 SRC_URI="http://www.lua.org/ftp/lua-${VERSION}.tar.gz"
+SRC_DIR="lua-${VERSION}"
 PATCH_URI="
 	5.1.4-prefix-usr.patch
 	5.1.4-luaconf_h.patch
 "
+
+PKG_NAMES="lua5.1"
+lua5_1_CONTENTS="usr/bin/ usr/lib/lua/5.1/ usr/share/doc/ usr/share/lua/5.1/"
+lua5_1_devel_CONTENTS="usr/include/ usr/lib/liblua*.dll.a"
+PKG_IGNORE=${lua5_1_devel_CONTENTS}
 
 src_compile() {
 	lndirs
 	cd ${B}/src
 	cygmake all \
 		CC=${CC} \
-		AR="${CC} -shared -Wl,--out-implib,liblua.dll.a -o" \
+		AR="${CC} -shared -Wl,--out-implib,liblua-${VERSION%.*}.dll.a -o" \
 		RANLIB=: \
 		LUA_A="cyglua-${VERSION%.*}.dll" \
-		LUA_T="lua.exe" \
-		LUAC_T="luac.exe" \
+		LUA_T="lua-5.1.exe" \
+		LUAC_T="luac-5.1.exe" \
 		MYCFLAGS="${CFLAGS} -DLUA_USE_LINUX" \
 		MYLIBS="-lreadline -lhistory"
 }
@@ -32,19 +38,14 @@ src_install() {
 
 	cd ${B}
 	cyginstall \
-		TO_BIN="cyglua-${slot}.dll lua.exe luac.exe" \
-		TO_LIB="liblua.dll.a" \
+		TO_BIN="cyglua-${slot}.dll lua-${slot}.exe luac-${slot}.exe" \
+		TO_LIB="liblua-${slot}.dll.a" \
+		TO_MAN=-d \
 		INSTALL_TOP=${D}/usr \
+		INSTALL_INC=${D}/usr/include/lua-${slot} \
 		INSTALL_MAN=${D}/usr/share/man/man1 \
 		INSTALL_EXEC="install -m755" \
 		INSTALL_DATA="install -m644"
 
-	dopkgconfig etc/lua.pc
-
 	keepdir /usr/{lib,share}/lua/${slot}
-
-	dosym liblua.dll.a /usr/lib/liblua${slot}.dll.a
-
-	docinto html
-	dodoc ${S}/doc/*.{css,gif,html}
 }
