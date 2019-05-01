@@ -1,5 +1,5 @@
 NAME="lua"
-VERSION=5.3.0
+VERSION=5.3.5
 RELEASE=1
 CATEGORY="Interpreters"
 SUMMARY="Lua programming language interpreter"
@@ -13,6 +13,7 @@ PATCH_URI="
 "
 
 PKG_NAMES="lua lua-devel"
+lua_OBSOLETES="lua-bit"
 lua_CONTENTS="usr/bin/ usr/lib/lua/ usr/share/"
 lua_devel_CONTENTS="usr/include/ usr/lib/liblua*.dll.a usr/lib/pkgconfig/"
 
@@ -26,8 +27,8 @@ src_compile() {
 		LUA_A="cyglua-${VERSION%.*}.dll" \
 		LUA_T="lua.exe" \
 		LUAC_T="luac.exe" \
-		MYCFLAGS="${CFLAGS} -DLUA_USE_LINUX" \
-		MYLIBS="-lreadline -lhistory"
+		CFLAGS="${CFLAGS}" \
+		LIBS="-lreadline -lhistory"
 }
 
 src_install() {
