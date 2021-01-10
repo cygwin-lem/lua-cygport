@@ -1,21 +1,45 @@
 NAME="lua"
-VERSION=5.3.5
+VERSION=5.3.6
 RELEASE=1
 CATEGORY="Interpreters"
 SUMMARY="Lua programming language interpreter"
 DESCRIPTION="Lua is a powerful, light-weight programming language designed
 for extending applications. Lua is also frequently used as a general-purpose,
 stand-alone language."
-HOMEPAGE="http://www.lua.org/"
-SRC_URI="http://www.lua.org/ftp/lua-${VERSION}.tar.gz"
+HOMEPAGE="https://www.lua.org/"
+SRC_URI="https://www.lua.org/ftp/lua-${VERSION}.tar.gz"
 PATCH_URI="
 	5.3.0-luaconf_h.patch
 "
 
-PKG_NAMES="lua lua-devel"
-lua_OBSOLETES="lua-bit"
-lua_CONTENTS="usr/bin/ usr/lib/lua/ usr/share/"
-lua_devel_CONTENTS="usr/include/ usr/lib/liblua*.dll.a usr/lib/pkgconfig/"
+BUILD_REQUIRES="\
+  libreadline-devel\
+"
+
+__add_pkg() {
+  THIS_PN="$1"
+  PKG_NAMES+=" ${THIS_PN}"
+}
+
+__set_pkg_property() {
+  local LOCAL_PN="${1:-${THIS_PN}}"
+  local LOCAL_VN="${LOCAL_PN//[-*\.]/_}"
+  printf -v "${LOCAL_VN}_$2" "%s" "$3"
+}
+
+__add_pkg "lua"
+__set_pkg_property "" CONTENTS  "usr/bin/*.exe usr/lib/lua/ usr/share/"
+__set_pkg_property "" OBSOLETES "lua-bit"
+
+__add_pkg "liblua${VERSION%.*}"
+__set_pkg_property "" SUMMARY   "${SUMMARY} (runtime)"
+__set_pkg_property "" CONTENTS  "usr/bin/*.dll"
+
+__add_pkg "liblua-devel"
+__set_pkg_property "" SUMMARY   "${SUMMARY} (devel)"
+__set_pkg_property "" CONTENTS  "usr/include/ usr/lib/liblua*.dll.a usr/lib/pkgconfig/"
+__set_pkg_property "" OBSOLETES "lua-devel"
+
 
 src_compile() {
 	lndirs
