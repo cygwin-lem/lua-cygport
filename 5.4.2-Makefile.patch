@@ -1,0 +1,58 @@
+--- origsrc/lua-5.4.2/Makefile	2020-11-11 05:54:50.000000000 +0900
++++ src/lua-5.4.2/Makefile
+@@ -39,10 +39,13 @@ RM= rm -f
+ PLATS= guess aix bsd c89 freebsd generic linux linux-readline macosx mingw posix solaris
+ 
+ # What to install.
+-TO_BIN= lua luac
++LUA_T?= lua
++LUAC_T?= luac
++
++TO_BIN= $(LUA_T)$(EXEC_SUFFIX) $(LUAC_T)$(EXEC_SUFFIX)
+ TO_INC= lua.h luaconf.h lualib.h lauxlib.h lua.hpp
+ TO_LIB= liblua.a
+-TO_MAN= lua.1 luac.1
++TO_MAN= $(LUA_T).1 $(LUAC_T).1
+ 
+ # Lua version and release.
+ V= 5.4
+@@ -59,7 +62,9 @@ install: dummy
+ 	cd src && $(INSTALL_EXEC) $(TO_BIN) $(INSTALL_BIN)
+ 	cd src && $(INSTALL_DATA) $(TO_INC) $(INSTALL_INC)
+ 	cd src && $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIB)
+-	cd doc && $(INSTALL_DATA) $(TO_MAN) $(INSTALL_MAN)
++	sed -e 's|^lua |'$(LUA_T)' |;' -e 's|^\.B lua$$|.B '$(LUA_T)'|;' -e 's|^\.BR luac |.BR '$(LUAC_T)' |;' < doc/lua.1 > src/$(LUA_T).1
++	sed -e 's|^luac |'$(LUAC_T)' |;' -e 's|^\.B luac$$|.B '$(LUAC_T)'|;' -e 's|^\.BR lua |.BR '$(LUA_T)' |;' < doc/luac.1 > src/$(LUAC_T).1
++	cd src && $(INSTALL_DATA) $(TO_MAN) $(INSTALL_MAN)
+ 
+ uninstall:
+ 	cd src && cd $(INSTALL_BIN) && $(RM) $(TO_BIN)
+--- origsrc/lua-5.4.2/src/Makefile	2020-11-11 03:39:37.000000000 +0900
++++ src/lua-5.4.2/src/Makefile	2021-01-23 16:37:26.713785500 +0900
+@@ -44,7 +44,7 @@ LUAC_T=	luac
+ LUAC_O=	luac.o
+ 
+ ALL_O= $(BASE_O) $(LUA_O) $(LUAC_O)
+-ALL_T= $(LUA_A) $(LUA_T) $(LUAC_T)
++ALL_T= $(LUA_A) $(LUA_T)$(EXEC_SUFFIX) $(LUAC_T)$(EXEC_SUFFIX)
+ ALL_A= $(LUA_A)
+ 
+ # Targets start here.
+@@ -60,14 +60,14 @@ $(LUA_A): $(BASE_O)
+ 	$(AR) $@ $(BASE_O)
+ 	$(RANLIB) $@
+ 
+-$(LUA_T): $(LUA_O) $(LUA_A)
++$(LUA_T)$(EXEC_SUFFIX): $(LUA_O) $(LUA_A)
+ 	$(CC) -o $@ $(LDFLAGS) $(LUA_O) $(LUA_A) $(LIBS)
+ 
+-$(LUAC_T): $(LUAC_O) $(LUA_A)
++$(LUAC_T)$(EXEC_SUFFIX): $(LUAC_O) $(LUA_A)
+ 	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) $(LUA_A) $(LIBS)
+ 
+ test:
+-	./lua -v
++	./$(LUA_T) -v
+ 
+ clean:
+ 	$(RM) $(ALL_T) $(ALL_O)
