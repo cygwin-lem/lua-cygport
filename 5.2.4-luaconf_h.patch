@@ -1,20 +1,41 @@
---- origsrc/lua-5.2.4/src/luaconf.h	2013-11-21 11:26:16.000000000 -0600
-+++ src/lua-5.2.4/src/luaconf.h	2015-06-04 10:48:33.767597600 -0500
-@@ -97,6 +97,18 @@
+--- origsrc/lua-5.2.4/src/luaconf.h	2013-11-22 02:26:16.000000000 +0900
++++ src/lua-5.2.4/src/luaconf.h
+@@ -11,6 +11,9 @@
+ #include <limits.h>
+ #include <stddef.h>
+ 
++#ifdef __CYGWIN__
++#define LUA_USE_LINUX
++#endif
+ 
+ /*
+ ** ==================================================================
+@@ -97,6 +100,29 @@
  #define LUA_CPATH_DEFAULT \
  		LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll;" ".\\?.dll"
  
-+#elif defined(__CYGWIN__)			/* }{ */
++#elif defined(__CYGWIN__)		/* }{ */
 +
-+#define LUA_VDIR	LUA_VERSION_MAJOR "." LUA_VERSION_MINOR "/"
++#define LUA_VDIR       LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
++
 +#define LUA_ROOT	"/usr/"
-+#define LUA_LDIR	LUA_ROOT "share/lua/" LUA_VDIR
-+#define LUA_CDIR	LUA_ROOT "lib/lua/" LUA_VDIR
++#define LUA_LDIR	LUA_ROOT "share/lua/" LUA_VDIR "/"
++#define LUA_CDIR	LUA_ROOT "lib/lua/" LUA_VDIR "/"
++
++#define LUA_ROOT_ROCKS	"/usr/"
++#define LUA_LDIR_ROCKS	LUA_ROOT_ROCKS "share/lua/luarocks/" LUA_VDIR "/"
++#define LUA_CDIR_ROCKS	LUA_ROOT_ROCKS "lib/lua/luarocks/" LUA_VDIR "/"
++
 +#define LUA_PATH_DEFAULT  \
 +		LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
-+		LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua;" "./?.lua"
++		LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua;" \
++		LUA_LDIR_ROCKS"?.lua;"  LUA_LDIR_ROCKS"?/init.lua;" \
++		LUA_CDIR_ROCKS"?.lua;"  LUA_CDIR_ROCKS"?/init.lua;" \
++		"./?.lua;" "./?/init.lua"
 +#define LUA_CPATH_DEFAULT \
-+		LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll;" "./?.dll"
++		LUA_CDIR"?.so;" LUA_CDIR"?.dll;" LUA_CDIR"loadall.so;" LUA_CDIR"loadall.dll;" \
++		LUA_CDIR_ROCKS"?.so;" LUA_CDIR_ROCKS"?.dll;" LUA_CDIR_ROCKS"loadall.so;" LUA_CDIR_ROCKS"loadall.dll;" \
++		"./?.so;" "./?.dll"
 +
  #else			/* }{ */
  

@@ -1,0 +1,192 @@
+################################
+NAME="lua52"
+VERSION=5.2.4
+RELEASE=1
+CATEGORY="Lua Interpreters"
+SUMMARY="Lua programming language interpreter"
+DESCRIPTION="\
+Lua is a powerful, efficient, lightweight, embeddable scripting language.
+It supports procedural programming, object-oriented programming,
+functional programming, data-driven programming, and data description.
+"
+HOMEPAGE="https://www.lua.org/"
+SRC_URI="https://www.lua.org/ftp/lua-${VERSION}.tar.gz"
+SRC_DIR="lua-${VERSION}"
+PATCH_URI="
+  5.2.4-Makefile.patch
+  5.2.4-luaconf_h.patch
+"
+
+BUILD_REQUIRES="\
+  libreadline-devel\
+"
+
+################################
+LUA_VERSION=${VERSION%.*}
+LUA_VERSIONS=${LUA_VERSION}
+source lua.experiment
+
+################################
+ABI=0
+
+
+################################
+_CYGPORT_RESTRICT_postinst_doc_=1
+
+__add_pkg "lua${LUA_CYG_V[${LUA_VERSION}]}"
+__set_pkg_property . CONTENTS  "\
+  usr/bin/ \
+  usr/*/lua/ \
+  usr/share/doc/lua${LUA_CYG_V[${LUA_VERSION}]}*
+  usr/share/man/*/lua*${LUA_VERSION}* \
+  etc/ \
+"
+case ${LUA_VERSION} in
+5.1)  __set_pkg_property . OBSOLETES "lua${LUA_VERSION}" ;;
+5.3)  __set_pkg_property . OBSOLETES "liblua${LUA_VERSION}" ;;
+5.4)  __set_pkg_property . OBSOLETES "liblua${LUA_VERSION}" ;;
+esac
+
+__add_pkg "lua${LUA_CYG_V[${LUA_VERSION}]}-devel"
+__set_pkg_property . SUMMARY   "${SUMMARY} (devel)"
+__set_pkg_property . CONTENTS  "\
+  usr/include/ \
+  usr/lib/liblua*.dll.a \
+  usr/lib/pkgconfig/ \
+"
+case ${LUA_VERSION} in
+5.1)  __set_pkg_property . OBSOLETES "lua${LUA_VERSION}-devel" ;;
+esac
+
+################################
+__set_LUA_MAKE_ARGS() {
+  LUA_MAKE_ARGS=(
+    EXEC_SUFFIX=.exe \
+    CC=${CC} \
+    AR="${CC} -shared -Wl,--out-implib,liblua${LUA_VERSION}.dll.a -o" \
+    RANLIB=: \
+    LUA_A="cyglua-${LUA_VERSION}.dll" \
+    LUA_T="lua${LUA_VERSION}" \
+    LUAC_T="luac${LUA_VERSION}" \
+    MYCFLAGS="${CFLAGS}" \
+    MYLIBS="-lreadline -lhistory"
+    TO_BIN="cyglua-${LUA_VERSION}.dll lua${LUA_VERSION}.exe luac${LUA_VERSION}.exe" \
+    TO_LIB="liblua${LUA_VERSION}.dll.a" \
+    INSTALL_TOP=${D}/usr \
+    INSTALL_BIN=${D}/usr/bin
+    INSTALL_INC=${D}/usr/include/lua${LUA_VERSION} \
+    INSTALL_LIB=${D}/usr/lib \
+    INSTALL_MAN=${D}/usr/share/man/man1 \
+    INSTALL_LMOD=${D}/usr/share/lua/${LUA_VERSION} \
+    INSTALL_CMOD=${D}/usr/lib/lua/${LUA_VERSION} \
+    INSTALL_EXEC="install -m755" \
+    INSTALL_DATA="install -m644" \
+  )
+}
+
+################################
+src_compile() {
+	__set_LUA_MAKE_ARGS
+	lndirs
+	cd ${B}/src
+	cygmake all "${LUA_MAKE_ARGS[@]}"
+}
+
+################################
+src_install() {
+	__set_LUA_MAKE_ARGS
+	cd ${B}
+	cyginstall "${LUA_MAKE_ARGS[@]}"
+
+	keepdir /usr/{lib,share}/lua/${LUA_VERSION}
+	keepdir /usr/share/lua/luarocks/{lib,share}/lua/${LUA_VERSION}
+
+	dodir /usr/lib/pkgconfig/lua${LUA_VERSION}
+	cat > ${D}/usr/lib/pkgconfig/lua${LUA_VERSION}/lua.pc <<_EOF
+V=${LUA_VERSION}
+R=${VERSION}
+
+prefix=/usr
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+INSTALL_BIN=\${prefix}/bin
+INSTALL_INC=\${prefix}/include/lua\${V}
+INSTALL_LIB=\${prefix}/lib
+INSTALL_MAN=\${prefix}/share/man/man1
+INSTALL_LMOD=\${prefix}/share/lua/\${V}
+INSTALL_CMOD=\${prefix}/lib/lua/\${V}
+
+Name: Lua
+Description: An Extensible Extension Language
+Version: \${R}
+Requires:
+Libs: -L\${INSTALL_LIB} -llua\${V}
+Cflags: -I\${INSTALL_INC}
+_EOF
+
+  dosym ./lua${LUA_VERSION}/lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc
+  dosym ./lua${LUA_VERSION}/lua.pc /usr/lib/pkgconfig/lua-${LUA_VERSION}.pc
+  dosym ./liblua${LUA_VERSION}.dll.a /usr/lib/liblua-${LUA_VERSION}.dll.a
+
+  docinto /lua${LUA_CYG_V[${LUA_VERSION}]}/html
+  dodoc ${S}/doc/*.{css,gif,html}
+  docinto /lua${LUA_CYG_V[${LUA_VERSION}]}
+  dodoc ${S}/README*
+
+  # postinstall/preremove scripts setting alternatives
+  local -a ALT_PARAMS=( "${LUA_NUM_V[${LUA_VERSION}]}" ) # PRIORITY
+  local POSTINSTALL=./postinstall/lua${LUA_CYG_V[${LUA_VERSION}]}.sh
+  local PREREMOVE=./preremove/lua${LUA_CYG_V[${LUA_VERSION}]}.sh
+
+  local LINK_NAME=lua
+  ALT_PARAMS+=(
+    "/usr/bin/${LINK_NAME}"                       # LINK
+    "${LINK_NAME}"                                # NAME
+    "/usr/bin/${LINK_NAME}${LUA_VERSION}"         # PATH
+  )
+  LINK_NAME=luac
+  ALT_PARAMS+=(
+    "/usr/bin/${LINK_NAME}"                       # SLINK
+    "${LINK_NAME}"                                # SNAME
+    "/usr/bin/${LINK_NAME}${LUA_VERSION}"         # SPATH
+  )
+  LINK_NAME=lua.1.gz
+  ALT_PARAMS+=(
+    "/usr/share/man/man1/${LINK_NAME}"            # SLINK
+    "${LINK_NAME}"                                # SNAME
+    "/usr/share/man/man1/lua${LUA_VERSION}.1.gz"  # SPATH
+  )
+  LINK_NAME=luac.1.gz
+  ALT_PARAMS+=(
+    "/usr/share/man/man1/${LINK_NAME}"            # SLINK
+    "${LINK_NAME}"                                # SNAME
+    "/usr/share/man/man1/luac${LUA_VERSION}.1.gz" # SPATH
+  )
+  LINK_NAME=lua.pc
+  ALT_PARAMS+=(
+    "/usr/lib/pkgconfig/${LINK_NAME}"             # SLINK
+    "${LINK_NAME}"                                # SNAME
+    "/usr/lib/pkgconfig/lua${LUA_VERSION}.pc"     # SPATH
+  )
+
+  mkdir -p ${POSTINSTALL%/*}
+  __alternatives_install "${ALT_PARAMS[@]}" > ${POSTINSTALL}
+  mkdir -p ${PREREMOVE%/*}
+  __alternatives_remove "${ALT_PARAMS[@]}" > ${PREREMOVE}
+
+  insinto /etc/postinstall
+  doins ${POSTINSTALL}
+  insinto /etc/preremove
+  doins ${PREREMOVE}
+}
+
+################################
+src_test() {
+  __set_LUA_MAKE_ARGS
+  cd ${B}
+  cygmake test "${LUA_MAKE_ARGS[@]}"
+}
+
+################################
