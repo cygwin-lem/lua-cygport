@@ -1,0 +1,294 @@
+################################################################
+SRC_URI+=" lua.experiment"
+
+################################################################
+: ${LUA_VERSIONS:=all}
+LUA_VERSIONS_ALL="5.3:5.4"
+LUA_VERSIONS_LATEST=${LUA_VERSIONS_ALL##*:}
+case ${LUA_VERSIONS} in
+all)
+  LUA_VERSIONS=${LUA_VERSIONS_ALL}
+  ;;
+latest)
+  LUA_VERSIONS=${LUA_VERSIONS_LATEST}
+  ;;
+esac
+
+################################################################
+__str_version_cyg() {
+  # Remove a period from a string "x.y" when both x and y are single-digit.
+  printf '%s' "$1" | sed -E 's/^([[:digit:]])\.([[:digit:]])$/\1\2/'
+}
+
+################################################################
+__current_pkg() {
+  THIS_PN="$1"
+}
+
+__add_pkg() {
+  THIS_PN="$1"
+  PKG_NAMES+=" ${THIS_PN}"
+}
+
+__set_pkg_property() {
+  local LOCAL_PN="$1"
+  if [ -z "${LOCAL_PN//[-+\._]/}" ]; then
+    LOCAL_PN="${THIS_PN}"
+  fi
+  local LOCAL_VN="${LOCAL_PN//[-+\.]/_}"
+  printf -v "${LOCAL_VN}_$2" "%s" "$3"
+}
+
+__append_pkg_property() {
+  local LOCAL_PN="$1"
+  if [ -z "${LOCAL_PN//[-+\._]/}" ]; then
+    LOCAL_PN="${THIS_PN}"
+  fi
+  local LOCAL_VN="${LOCAL_PN//[-+\.]/_}"
+  local LOCAL_VN_PROPERTY="${LOCAL_VN}_$2"
+  printf -v "${LOCAL_VN_PROPERTY}" "%s" "${!LOCAL_VN_PROPERTY}$3"
+}
+
+################################################################
+cpdirs() {
+  tar -C "$1" -cf - . | tar -C "$2" -xpf -
+}
+
+################################################################
+__doinsdir () {
+  local src="$1"
+  local dst="$2"
+  local f
+  [ -d "${src}" ] || error "__doinsdir ${src} failed: not a directory"
+  pushd "${src}"
+  for f in $(find . -type d); do
+    insinto "${dst}/$f"
+    doins $(find "$f" -maxdepth 1 -not -type d)
+  done
+  popd
+}
+
+__dodocdir () {
+  local src="$1"
+  local dst="$2"
+  local f
+  [ -d "${src}" ] || error "__dodocdir ${src} failed: not a directory"
+  pushd "${src}"
+  for f in $(find . -type d); do
+    docinto "${dst}/$f"
+    dodoc $(find "$f" -maxdepth 1 -not -type d)
+  done
+  popd
+}
+
+################################################################
+# __alternatives_install PRIORITY LINK NAME PATH [SLINK SNAME SPATH]*
+__alternatives_install(){
+  local ALT_PRIO=$1
+  shift \
+  || error "__alternatives_install(): needs parameters PRIORITY LINK NAME PATH"
+  local ALT_LINK=$1
+  local ALT_NAME=$2
+  local ALT_PATH=$3
+  shift 3 \
+  || error "__alternatives_install(): needs parameters PRIORITY LINK NAME PATH"
+
+  cat <<- _EOF_
+	/usr/sbin/alternatives \\
+	  --install ${ALT_LINK} \\
+	    ${ALT_NAME} ${ALT_PATH} \\
+	    ${ALT_PRIO} \\
+	_EOF_
+  while [ -n "$1" ]; do
+    ALT_LINK=$1
+    ALT_NAME=$2
+    ALT_PATH=$3
+    shift 3 \
+    || error "__alternatives_install(): needs parameters SLINK SNAME SPATH"
+    cat <<- _EOF_
+	  --slave ${ALT_LINK} \\
+	    ${ALT_NAME} ${ALT_PATH} \\
+	_EOF_
+  done
+  cat <<- _EOF_
+	  ;
+	_EOF_
+}
+
+# __alternatives_remove PRIORITY LINK NAME PATH [SLINK SNAME SPATH]*
+#  (only NAME and PATH are effective, and the rest are ignored)
+__alternatives_remove(){
+  local ALT_PRIO=$1
+  shift || error "__alternatives_remove(): needs parameters PRIORITY LINK NAME PATH"
+  local ALT_LINK=$1
+  local ALT_NAME=$2
+  local ALT_PATH=$3
+  shift 3 || error "__alternatives_remove(): needs parameters PRIORITY LINK NAME PATH"
+
+  cat <<- _EOF_
+	/usr/sbin/alternatives \\
+	  --remove \\
+	    ${ALT_NAME} ${ALT_PATH} \\
+	  ;
+	_EOF_
+}
+
+################################################################
+lua_fix_shebang_version_print() {
+  local LUA_VERSION="$1"
+  local interp="/usr/bin/lua${LUA_VERSION}"
+  local src="$2"
+  local head=$(head -1 "${src}")
+
+  [ x"${head}" = x'#!'"${head#\#\!}" ] \
+  || error "lua_fix_shebang_version_print $1 $2 failed: no shebang"
+
+  printf "%s\n" "${head}" \
+  | sed -e 's;^#![[:space:]]*\(\([^[:space:]]*/\|\)env[[:space:]]*[^[:space:]][^[:space:]]*\|[^[:space:]]*\)\(.*\);#!'"${interp}"'\3;'
+  tail +2 "${src}"
+}
+
+################################################################
+lua_path_from_dirs() {
+  local p=
+  local f
+  for f in "$@"; do
+    p+="${f%/}/?.lua;${f%/}/?/init.lua;"
+  done
+  printf '%s' "${p%;}"
+}
+
+lua_cpath_from_dirs() {
+  local p=
+  local f
+  for f in "$@"; do
+    p+="${f%/}/?.so;${f%/}/?.dll;"
+  done
+  printf '%s' "${p%;}"
+}
+
+################################################################
+lua_path_test() {
+  local LUA_VERSION="${1}"
+  shift
+  lua_path_from_dirs \
+    "$@" \
+    "${D}${LUA_LMOD_V[${LUA_VERSION}]}" \
+    "${D}${LUA_CMOD_V[${LUA_VERSION}]}" \
+    "${LUA_LMOD_V[${LUA_VERSION}]}" \
+    "${LUA_CMOD_V[${LUA_VERSION}]}" \
+    ;
+}
+
+lua_cpath_test() {
+  local LUA_VERSION="${1}"
+  shift
+  lua_cpath_from_dirs \
+    "$@" \
+    "${D}${LUA_CMOD_V[${LUA_VERSION}]}" \
+    "${LUA_CMOD_V[${LUA_VERSION}]}" \
+    ;
+}
+
+################################################################
+src_compile_lua_versions() {
+  local LUA_VERSIONS="${1}"
+  local LUA_PKG_NAME="${2}"
+  local LUA_VERSION
+  for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    src_compile_lua ${LUA_VERSION} ${LUA_PKG_NAME}
+  done
+}
+
+src_install_lua_versions() {
+  local LUA_VERSIONS="${1}"
+  local LUA_PKG_NAME="${2}"
+  local LUA_VERSION
+  for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    src_install_lua ${LUA_VERSION} ${LUA_PKG_NAME}
+  done
+}
+
+src_test_lua_versions() {
+  local LUA_VERSIONS="${1}"
+  local LUA_PKG_NAME="${2}"
+  local LUA_VERSION
+  for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    src_test_lua ${LUA_VERSION} ${LUA_PKG_NAME}
+  done
+}
+
+readonly -f \
+  src_compile_lua_versions \
+  src_install_lua_versions \
+  src_test_lua_versions \
+  ;
+
+################################################################
+src_compile() {
+  src_compile_lua_versions ${LUA_VERSIONS} ${LUA_PKG_NAME}
+}
+
+src_install() {
+  src_install_lua_versions ${LUA_VERSIONS} ${LUA_PKG_NAME}
+}
+
+src_test() {
+  src_test_lua_versions ${LUA_VERSIONS} ${LUA_PKG_NAME}
+}
+
+################################################################
+declare -A LUA_REL_V
+declare -A LUA_BIN_V
+declare -A LUA_INC_V
+declare -A LUA_LIB_V
+declare -A LUA_MAN_V
+declare -A LUA_LMOD_V
+declare -A LUA_CMOD_V
+declare -A LUA_CFLAGS_V
+declare -A LUA_LIBS_V
+declare -A LUA_PATH_V
+declare -A LUA_CPATH_V
+declare -A LUA_CYG_V
+declare -A LUA_NUM_V
+declare -A LUA_PKG_CONFIG_PATH_V
+
+__lua_config_variables() {
+  local vlist=${1}
+  local v
+  for v in ${vlist//:/ }; do
+    if pkg-config --exists lua${v}; then
+      LUA_REL_V[${v}]=$(pkg-config --variable=R lua${v})
+      LUA_BIN_V[${v}]=$(pkg-config --variable=INSTALL_BIN lua${v})
+      LUA_INC_V[${v}]=$(pkg-config --variable=INSTALL_INC lua${v})
+      LUA_LIB_V[${v}]=$(pkg-config --variable=INSTALL_LIB lua${v})
+      LUA_MAN_V[${v}]=$(pkg-config --variable=INSTALL_MAN lua${v})
+      LUA_LMOD_V[${v}]=$(pkg-config --variable=INSTALL_LMOD lua${v})
+      LUA_CMOD_V[${v}]=$(pkg-config --variable=INSTALL_CMOD lua${v})
+      LUA_CFLAGS_V[${v}]=$(pkg-config --cflags lua${v})
+      LUA_LIBS_V[${v}]=$(pkg-config --libs lua${v})
+    else
+      LUA_REL_V[${v}]=${v}
+      LUA_BIN_V[${v}]=/usr/bin
+      LUA_INC_V[${v}]=/usr/include/lua${v}
+      LUA_LIB_V[${v}]=/usr/lib
+      LUA_MAN_V[${v}]=/usr/share/man/man1
+      LUA_LMOD_V[${v}]=/usr/share/lua/${v}
+      LUA_CMOD_V[${v}]=/usr/lib/lua/${v}
+      LUA_CFLAGS_V[${v}]="-I${LUA_INC_V[${v}]}"
+      LUA_LIBS_V[${v}]="-L${LUA_LIB_V[${v}]} -llua${v}"
+    fi
+    LUA_PATH_V[${v}]=$(lua_path_from_dirs ${LUA_LMOD_V[${v}]} ${LUA_CMOD_V[${v}]} .)
+    LUA_CPATH_V[${v}]=$(lua_cpath_from_dirs ${LUA_CMOD_V[${v}]} .)
+    LUA_CYG_V[${v}]=$(__str_version_cyg ${v})
+    local v1=$( printf '%s' "${v}" | sed -e 's/\..*//;s/^0*\([0-9]\)/\1/' )
+    local v2=$( printf '%s' "${v}" | sed -e 's/^[^\.]*//;s/^\.//;s/\..*//;s/^0*\([0-9]\)/\1/' )
+    LUA_NUM_V[${v}]=$((v1 * 100 + v2))
+    LUA_PKG_CONFIG_PATH_V[${v}]=/usr/lib/pkgconfig/lua${v}
+  done
+}
+
+################################################################
+__lua_config_variables "${LUA_VERSIONS}"
+
+################################################################
