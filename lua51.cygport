@@ -15,6 +15,7 @@ SRC_DIR="lua-${VERSION}"
 PATCH_URI="
   5.1.5-Makefile.patch
   5.1.5-luaconf_h.patch
+  5.1.5-version_env.patch
 "
 
 BUILD_REQUIRES="\

@@ -1,0 +1,155 @@
+--- origsrc/lua-5.1.5/src/loadlib.c	2009-09-09 22:17:16.000000000 +0900
++++ src/lua-5.1.5/src/loadlib.c
+@@ -22,6 +22,23 @@
+ #include "lualib.h"
+ 
+ 
++/*
++** LUA_PATH and LUA_CPATH are the names of the environment
++** variables that Lua check to set its paths.
++*/
++#if !defined(LUA_PATH)
++#define LUA_PATH	"LUA_PATH"
++#endif
++
++#if !defined(LUA_CPATH)
++#define LUA_CPATH	"LUA_CPATH"
++#endif
++
++#define LUA_PATHSUFFIX		"_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
++
++#define LUA_PATHVERSION		LUA_PATH LUA_PATHSUFFIX
++#define LUA_CPATHVERSION	LUA_CPATH LUA_PATHSUFFIX
++
+ /* prefix for open functions in C libraries */
+ #define LUA_POF		"luaopen_"
+ 
+@@ -589,10 +606,25 @@
+ /* auxiliary mark (for internal use) */
+ #define AUXMARK		"\1"
+ 
+-static void setpath (lua_State *L, const char *fieldname, const char *envname,
+-                                   const char *def) {
+-  const char *path = getenv(envname);
++
++/*
++** return registry.LUA_NOENV as a boolean
++*/
++static int noenv (lua_State *L) {
++  int b;
++  lua_getfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
++  b = lua_toboolean(L, -1);
++  lua_pop(L, 1);  /* remove value */
++  return b;
++}
++
++
++static void setpath (lua_State *L, const char *fieldname, const char *envname1,
++                                   const char *envname2, const char *def) {
++  const char *path = getenv(envname1);
+   if (path == NULL)  /* no environment variable? */
++    path = getenv(envname2);  /* try alternative name */
++  if (path == NULL || noenv(L))  /* no environment variable? */
+     lua_pushstring(L, def);  /* use default */
+   else {
+     /* replace ";;" by ";AUXMARK;" and then AUXMARK by default path */
+@@ -646,8 +678,10 @@
+     lua_rawseti(L, -2, i+1);
+   }
+   lua_setfield(L, -2, "loaders");  /* put it in field `loaders' */
+-  setpath(L, "path", LUA_PATH, LUA_PATH_DEFAULT);  /* set field `path' */
+-  setpath(L, "cpath", LUA_CPATH, LUA_CPATH_DEFAULT); /* set field `cpath' */
++  /* set field 'path' */
++  setpath(L, "path", LUA_PATHVERSION, LUA_PATH, LUA_PATH_DEFAULT);
++  /* set field 'cpath' */
++  setpath(L, "cpath", LUA_CPATHVERSION, LUA_CPATH, LUA_CPATH_DEFAULT);
+   /* store config information */
+   lua_pushliteral(L, LUA_DIRSEP "\n" LUA_PATHSEP "\n" LUA_PATH_MARK "\n"
+                      LUA_EXECDIR "\n" LUA_IGMARK);
+--- origsrc/lua-5.1.5/src/lua.c	2007-12-29 00:32:23.000000000 +0900
++++ src/lua-5.1.5/src/lua.c
+@@ -18,6 +18,13 @@
+ #include "lualib.h"
+ 
+ 
++#if !defined(LUA_INIT)
++#define LUA_INIT		"LUA_INIT"
++#endif
++
++#define LUA_INITVERSION  \
++	LUA_INIT "_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
++
+ 
+ static lua_State *globalL = NULL;
+ 
+@@ -321,12 +328,17 @@
+ 
+ 
+ static int handle_luainit (lua_State *L) {
+-  const char *init = getenv(LUA_INIT);
+-  if (init == NULL) return 0;  /* status OK */
++  const char *name = "=" LUA_INITVERSION;
++  const char *init = getenv(name + 1);
++  if (init == NULL) {
++    name = "=" LUA_INIT;
++    init = getenv(name + 1);  /* try alternative name */
++  }
++  if (init == NULL) return LUA_OK;
+   else if (init[0] == '@')
+     return dofile(L, init+1);
+   else
+-    return dostring(L, init, "=" LUA_INIT);
++    return dostring(L, init, name);
+ }
+ 
+ 
+--- origsrc/lua-5.1.5/src/lua.h	2012-01-14 05:36:20.000000000 +0900
++++ src/lua-5.1.5/src/lua.h
+@@ -16,9 +16,13 @@
+ #include "luaconf.h"
+ 
+ 
+-#define LUA_VERSION	"Lua 5.1"
+-#define LUA_RELEASE	"Lua 5.1.5"
+-#define LUA_VERSION_NUM	501
++#define LUA_VERSION_MAJOR	"5"
++#define LUA_VERSION_MINOR	"1"
++#define LUA_VERSION_NUM		501
++#define LUA_VERSION_RELEASE	"5"
++
++#define LUA_VERSION	"Lua " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
++#define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
+ #define LUA_COPYRIGHT	"Copyright (C) 1994-2012 Lua.org, PUC-Rio"
+ #define LUA_AUTHORS 	"R. Ierusalimschy, L. H. de Figueiredo & W. Celes"
+ 
+@@ -39,7 +43,8 @@
+ #define lua_upvalueindex(i)	(LUA_GLOBALSINDEX-(i))
+ 
+ 
+-/* thread status; 0 is OK */
++/* thread status */
++#define LUA_OK		0
+ #define LUA_YIELD	1
+ #define LUA_ERRRUN	2
+ #define LUA_ERRSYNTAX	3
+--- origsrc/lua-5.1.5/src/luaconf.h	2008-02-12 01:25:08.000000000 +0900
++++ src/lua-5.1.5/src/luaconf.h
+@@ -60,18 +60,6 @@
+ 
+ 
+ /*
+-@@ LUA_PATH and LUA_CPATH are the names of the environment variables that
+-@* Lua check to set its paths.
+-@@ LUA_INIT is the name of the environment variable that Lua
+-@* checks for initialization code.
+-** CHANGE them if you want different names.
+-*/
+-#define LUA_PATH        "LUA_PATH"
+-#define LUA_CPATH       "LUA_CPATH"
+-#define LUA_INIT	"LUA_INIT"
+-
+-
+-/*
+ @@ LUA_PATH_DEFAULT is the default path that Lua uses to look for
+ @* Lua libraries.
+ @@ LUA_CPATH_DEFAULT is the default path that Lua uses to look for
