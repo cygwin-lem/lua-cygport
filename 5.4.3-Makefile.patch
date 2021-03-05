@@ -1,6 +1,6 @@
---- origsrc/lua-5.4.2/Makefile	2020-11-11 05:54:50.000000000 +0900
-+++ src/lua-5.4.2/Makefile
-@@ -39,10 +39,13 @@ RM= rm -f
+--- origsrc/lua-5.4.3/Makefile	2021-03-03 05:04:35.000000000 +0900
++++ src/lua-5.4.3/Makefile
+@@ -39,10 +39,13 @@
  PLATS= guess aix bsd c89 freebsd generic linux linux-readline macosx mingw posix solaris
  
  # What to install.
@@ -16,7 +16,7 @@
  
  # Lua version and release.
  V= 5.4
-@@ -59,7 +62,9 @@ install: dummy
+@@ -59,7 +62,9 @@
  	cd src && $(INSTALL_EXEC) $(TO_BIN) $(INSTALL_BIN)
  	cd src && $(INSTALL_DATA) $(TO_INC) $(INSTALL_INC)
  	cd src && $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIB)
@@ -27,9 +27,9 @@
  
  uninstall:
  	cd src && cd $(INSTALL_BIN) && $(RM) $(TO_BIN)
---- origsrc/lua-5.4.2/src/Makefile	2020-11-11 03:39:37.000000000 +0900
-+++ src/lua-5.4.2/src/Makefile	2021-01-23 16:37:26.713785500 +0900
-@@ -44,7 +44,7 @@ LUAC_T=	luac
+--- origsrc/lua-5.4.3/src/Makefile	2021-02-10 03:47:17.000000000 +0900
++++ src/lua-5.4.3/src/Makefile
+@@ -44,7 +44,7 @@
  LUAC_O=	luac.o
  
  ALL_O= $(BASE_O) $(LUA_O) $(LUAC_O)
@@ -38,7 +38,7 @@
  ALL_A= $(LUA_A)
  
  # Targets start here.
-@@ -60,14 +60,14 @@ $(LUA_A): $(BASE_O)
+@@ -60,10 +60,10 @@
  	$(AR) $@ $(BASE_O)
  	$(RANLIB) $@
  
@@ -51,8 +51,3 @@
  	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) $(LUA_A) $(LIBS)
  
  test:
--	./lua -v
-+	./$(LUA_T) -v
- 
- clean:
- 	$(RM) $(ALL_T) $(ALL_O)
