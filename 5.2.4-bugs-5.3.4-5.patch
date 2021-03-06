@@ -1,0 +1,14 @@
+# cf. https://www.lua.org/bugs.html#5.3.4-5
+--- origsrc/lua-5.2.4/src/lgc.c	2014-09-02 01:55:08.000000000 +0900
++++ src/lua-5.2.4/src/lgc.c
+@@ -629,8 +629,9 @@
+     for (n = gnode(h, 0); n < limit; n++) {
+       if (!ttisnil(gval(n)) && (iscleared(g, gkey(n)))) {
+         setnilvalue(gval(n));  /* remove value ... */
+-        removeentry(n);  /* and remove entry from table */
+       }
++      if (ttisnil(gval(n)))  /* is entry empty? */
++        removeentry(n);  /* remove entry from table */
+     }
+   }
+ }
