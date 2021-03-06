@@ -1,0 +1,14 @@
+# cf. https://www.lua.org/bugs.html#5.3.4-2
+--- origsrc/lua-5.2.4/src/ltable.c	2013-04-13 03:48:47.000000000 +0900
++++ src/lua-5.2.4/src/ltable.c
+@@ -199,7 +199,9 @@
+   int a = 0;  /* number of elements smaller than 2^i */
+   int na = 0;  /* number of elements to go to array part */
+   int n = 0;  /* optimal size for array part */
+-  for (i = 0, twotoi = 1; twotoi/2 < *narray; i++, twotoi *= 2) {
++  for (i = 0, twotoi = 1;
++       twotoi > 0 && twotoi/2 < *narray;
++       i++, twotoi *= 2) {
+     if (nums[i] > 0) {
+       a += nums[i];
+       if (a > twotoi/2) {  /* more than half elements present? */
