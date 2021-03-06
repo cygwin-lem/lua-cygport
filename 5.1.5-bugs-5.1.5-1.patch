@@ -1,0 +1,12 @@
+# cf. https://www.lua.org/bugs.html#5.1.5-1
+--- origsrc/lua-5.1.5/src/Makefile	2012-02-14 05:41:22.000000000 +0900
++++ src/lua-5.1.5/src/Makefile
+@@ -48,7 +48,7 @@
+ a:	$(ALL_A)
+ 
+ $(LUA_A): $(CORE_O) $(LIB_O)
+-	$(AR) $@ $(CORE_O) $(LIB_O)	# DLL needs all object files
++	$(AR) $@ $(CORE_O) $(LIB_O)
+ 	$(RANLIB) $@
+ 
+ $(LUA_T): $(LUA_O) $(LUA_A)
