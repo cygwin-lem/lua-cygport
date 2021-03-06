@@ -17,6 +17,7 @@ PATCH_URI="
   5.1.5-bugs-5.1.5-2.patch
   5.1.5-bugs-5.2.2-1.patch
   5.1.5-bugs-5.2.3-1.patch
+  5.1.5-bugs-5.2.3-3.patch
   5.1.5-Makefile.patch
   5.1.5-luaconf_h.patch
   5.1.5-version_env.patch

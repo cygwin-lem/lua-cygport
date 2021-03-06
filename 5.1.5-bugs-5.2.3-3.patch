@@ -1,0 +1,12 @@
+# cf. https://www.lua.org/bugs.html#5.2.3-3
+--- origsrc/lua-5.1.5/src/llex.c	2009-11-23 23:58:22.000000000 +0900
++++ src/lua-5.1.5/src/llex.c
+@@ -133,7 +133,7 @@
+   if (currIsNewline(ls) && ls->current != old)
+     next(ls);  /* skip `\n\r' or `\r\n' */
+   if (++ls->linenumber >= MAX_INT)
+-    luaX_syntaxerror(ls, "chunk has too many lines");
++    luaX_lexerror(ls, "chunk has too many lines", 0);
+ }
+ 
+ 
