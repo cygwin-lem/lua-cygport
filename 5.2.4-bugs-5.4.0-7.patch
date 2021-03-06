@@ -1,0 +1,12 @@
+# cf. https://www.lua.org/bugs.html#5.4.0-7
+--- origsrc/lua-5.2.4/src/liolib.c	2013-04-13 03:48:47.000000000 +0900
++++ src/lua-5.2.4/src/liolib.c
+@@ -247,6 +247,8 @@
+   const char *filename = luaL_checkstring(L, 1);
+   const char *mode = luaL_optstring(L, 2, "r");
+   LStream *p = newprefile(L);
++  luaL_argcheck(L, ((mode[0] == 'r' || mode[0] == 'w') && mode[1] == '\0'),
++                   2, "invalid mode");
+   p->f = lua_popen(L, filename, mode);
+   p->closef = &io_pclose;
+   return (p->f == NULL) ? luaL_fileresult(L, 0, filename) : 1;
