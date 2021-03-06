@@ -1,0 +1,37 @@
+# cf. https://www.lua.org/bugs.html#5.3.4-7
+--- origsrc/lua-5.2.4/src/ltable.c	2013-04-13 03:48:47.000000000 +0900
++++ src/lua-5.2.4/src/ltable.c
+@@ -301,15 +301,32 @@
+ }
+ 
+ 
++typedef struct {
++  Table *t;
++  unsigned int nhsize;
++} AuxsetnodeT;
++
++
++static void auxsetnode (lua_State *L, void *ud) {
++  AuxsetnodeT *asn = cast(AuxsetnodeT *, ud);
++  setnodevector(L, asn->t, asn->nhsize);
++}
++
++
+ void luaH_resize (lua_State *L, Table *t, int nasize, int nhsize) {
+   int i;
++  AuxsetnodeT asn;
+   int oldasize = t->sizearray;
+   int oldhsize = t->lsizenode;
+   Node *nold = t->node;  /* save old hash ... */
+   if (nasize > oldasize)  /* array part must grow? */
+     setarrayvector(L, t, nasize);
+   /* create new hash part with appropriate size */
+-  setnodevector(L, t, nhsize);
++  asn.t = t; asn.nhsize = nhsize;
++  if (luaD_rawrunprotected(L, auxsetnode, &asn) != LUA_OK) {  /* mem. error? */
++    setarrayvector(L, t, oldasize);  /* array back to its original size */
++    luaD_throw(L, LUA_ERRMEM);  /* rethrow memory error */
++  }
+   if (nasize < oldasize) {  /* array part must shrink? */
+     t->sizearray = nasize;
+     /* re-insert elements from vanishing slice */
