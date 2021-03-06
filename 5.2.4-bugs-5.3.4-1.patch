@@ -1,0 +1,12 @@
+# cf. https://www.lua.org/bugs.html#5.3.4-1
+--- origsrc/lua-5.2.4/src/lparser.c	2013-04-13 03:48:47.000000000 +0900
++++ src/lua-5.2.4/src/lparser.c
+@@ -1384,7 +1384,7 @@
+     luaK_goiffalse(ls->fs, &v);  /* will jump to label if condition is true */
+     enterblock(fs, &bl, 0);  /* must enter block before 'goto' */
+     gotostat(ls, v.t);  /* handle goto/break */
+-    skipnoopstat(ls);  /* skip other no-op statements */
++    while (testnext(ls, ';')) {}  /* skip semicolons */
+     if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
+       leaveblock(fs);
+       return;  /* and that is it */
