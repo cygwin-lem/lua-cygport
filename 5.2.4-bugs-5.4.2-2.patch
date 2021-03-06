@@ -1,0 +1,11 @@
+# cf. https://www.lua.org/bugs.html#5.4.2-2
+--- origsrc/lua-5.2.4/src/ldblib.c	2015-02-20 02:16:55.000000000 +0900
++++ src/lua-5.2.4/src/ldblib.c
+@@ -120,6 +120,7 @@
+   lua_State *L1 = getthread(L, &arg);
+   const char *options = luaL_optstring(L, arg+2, "flnStu");
+   checkstack(L, L1, 3);
++  luaL_argcheck(L, options[0] != '>', arg + 2, "invalid option '>'");
+   if (lua_isnumber(L, arg+1)) {
+     if (!lua_getstack(L1, (int)lua_tointeger(L, arg+1), &ar)) {
+       lua_pushnil(L);  /* level out of range */
