@@ -1,0 +1,50 @@
+# cf. https://www.lua.org/bugs.html#5.3.4-3
+--- origsrc/lua-5.2.4/src/ltable.c	2013-04-13 03:48:47.000000000 +0900
++++ src/lua-5.2.4/src/ltable.c
+@@ -529,14 +529,13 @@
+ }
+ 
+ 
+-static int unbound_search (Table *t, unsigned int j) {
+-  unsigned int i = j;  /* i is zero or a present index */
+-  j++;
++static lua_Unsigned unbound_search (Table *t, lua_Unsigned j) {
++  lua_Unsigned i = j;  /* i is zero or a present index */  j++;
+   /* find `i' and `j' such that i is present and j is not */
+   while (!ttisnil(luaH_getint(t, j))) {
+     i = j;
+     j *= 2;
+-    if (j > cast(unsigned int, MAX_INT)) {  /* overflow? */
++    if (j > cast(lua_Unsigned, MAX_INT) / 2) {  /* overflow? */
+       /* table was built with bad purposes: resort to linear search */
+       i = 1;
+       while (!ttisnil(luaH_getint(t, i))) i++;
+@@ -545,7 +544,7 @@
+   }
+   /* now do a binary search between them */
+   while (j - i > 1) {
+-    unsigned int m = (i+j)/2;
++    lua_Unsigned m = (i+j)/2;
+     if (ttisnil(luaH_getint(t, m))) j = m;
+     else i = m;
+   }
+@@ -557,7 +556,7 @@
+ ** Try to find a boundary in table `t'. A `boundary' is an integer index
+ ** such that t[i] is non-nil and t[i+1] is nil (and 0 if t[1] is nil).
+ */
+-int luaH_getn (Table *t) {
++lua_Unsigned luaH_getn (Table *t) {
+   unsigned int j = t->sizearray;
+   if (j > 0 && ttisnil(&t->array[j - 1])) {
+     /* there is a boundary in the array part: (binary) search for it */
+--- origsrc/lua-5.2.4/src/ltable.h	2013-08-31 00:49:41.000000000 +0900
++++ src/lua-5.2.4/src/ltable.h
+@@ -33,7 +33,7 @@
+ LUAI_FUNC void luaH_resizearray (lua_State *L, Table *t, int nasize);
+ LUAI_FUNC void luaH_free (lua_State *L, Table *t);
+ LUAI_FUNC int luaH_next (lua_State *L, Table *t, StkId key);
+-LUAI_FUNC int luaH_getn (Table *t);
++LUAI_FUNC lua_Unsigned luaH_getn (Table *t);
+ 
+ 
+ #if defined(LUA_DEBUG)
