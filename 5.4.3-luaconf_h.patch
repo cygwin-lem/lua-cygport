@@ -1,5 +1,5 @@
---- origsrc/lua-5.4.2/src/luaconf.h	2020-11-14 00:32:02.000000000 +0900
-+++ src/lua-5.4.2/src/luaconf.h
+--- origsrc/lua-5.4.3/src/luaconf.h	2021-03-15 22:32:52.000000000 +0900
++++ src/lua-5.4.3/src/luaconf.h
 @@ -11,6 +11,10 @@
  #include <limits.h>
  #include <stddef.h>
@@ -11,7 +11,7 @@
  
  /*
  ** ===================================================================
-@@ -210,6 +216,27 @@
+@@ -215,6 +219,27 @@
  		LUA_CDIR"loadall.dll;" ".\\?.dll"
  #endif
  

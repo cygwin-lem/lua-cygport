@@ -1,6 +1,6 @@
 ################################
 NAME="lua54"
-VERSION=5.4.2
+VERSION=5.4.3
 RELEASE=1
 CATEGORY="Lua Interpreters"
 SUMMARY="Lua programming language interpreter"
@@ -13,8 +13,8 @@ HOMEPAGE="https://www.lua.org/"
 SRC_URI="https://www.lua.org/ftp/lua-${VERSION}.tar.gz"
 SRC_DIR="lua-${VERSION}"
 PATCH_URI="
-  5.4.2-Makefile.patch
-  5.4.2-luaconf_h.patch
+  5.4.3-Makefile.patch
+  5.4.3-luaconf_h.patch
 "
 
 BUILD_REQUIRES="\
