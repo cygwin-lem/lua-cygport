@@ -1,0 +1,11 @@
+# cf. https://www.lua.org/bugs.html#5.4.2-2
+--- origsrc/lua-5.3.6/src/ldblib.c	2020-09-15 00:34:00.000000000 +0900
++++ src/lua-5.3.6/src/ldblib.c
+@@ -148,6 +148,7 @@
+   lua_State *L1 = getthread(L, &arg);
+   const char *options = luaL_optstring(L, arg+2, "flnStu");
+   checkstack(L, L1, 3);
++  luaL_argcheck(L, options[0] != '>', arg + 2, "invalid option '>'");
+   if (lua_isfunction(L, arg + 1)) {  /* info about a function? */
+     options = lua_pushfstring(L, ">%s", options);  /* add '>' to 'options' */
+     lua_pushvalue(L, arg + 1);  /* move function to 'L1' stack */

@@ -9,6 +9,8 @@ stand-alone language."
 HOMEPAGE="https://www.lua.org/"
 SRC_URI="https://www.lua.org/ftp/lua-${VERSION}.tar.gz"
 PATCH_URI="
+  5.3.6-bugs-5.4.2-2.patch
+  5.3.6-bugs-5.4.2-3.patch
   5.3.6-Makefile.patch
   5.3.0-luaconf_h.patch
 "
