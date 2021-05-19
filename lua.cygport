@@ -1,6 +1,6 @@
 NAME="lua"
 VERSION=5.3.6
-RELEASE=1
+RELEASE=2
 CATEGORY="Interpreters"
 SUMMARY="Lua programming language interpreter"
 DESCRIPTION="Lua is a powerful, light-weight programming language designed
