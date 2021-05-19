@@ -1,7 +1,7 @@
---- origsrc/lua-5.3.6/Makefile	2020-07-14 03:38:27.000000000 +0900
-+++ src/lua-5.3.6/Makefile
-@@ -39,10 +39,13 @@ RM= rm -f
- PLATS= aix bsd c89 freebsd generic linux macosx mingw posix solaris
+--- origsrc/lua-5.4.3/Makefile	2021-03-03 05:04:35.000000000 +0900
++++ src/lua-5.4.3/Makefile
+@@ -39,10 +39,13 @@
+ PLATS= guess aix bsd c89 freebsd generic linux linux-readline macosx mingw posix solaris
  
  # What to install.
 -TO_BIN= lua luac
@@ -15,16 +15,8 @@
 +TO_MAN= $(LUA_T).1 $(LUAC_T).1
  
  # Lua version and release.
- V= 5.3
-@@ -55,14 +58,16 @@ $(PLATS) clean:
- 	cd src && $(MAKE) $@
- 
- test:	dummy
--	src/lua -v
-+	src/$(LUA_T) -v
- 
- install: dummy
- 	cd src && $(MKDIR) $(INSTALL_BIN) $(INSTALL_INC) $(INSTALL_LIB) $(INSTALL_MAN) $(INSTALL_LMOD) $(INSTALL_CMOD)
+ V= 5.4
+@@ -59,7 +62,9 @@
  	cd src && $(INSTALL_EXEC) $(TO_BIN) $(INSTALL_BIN)
  	cd src && $(INSTALL_DATA) $(TO_INC) $(INSTALL_INC)
  	cd src && $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIB)
@@ -35,9 +27,9 @@
  
  uninstall:
  	cd src && cd $(INSTALL_BIN) && $(RM) $(TO_BIN)
---- origsrc/lua-5.3.6/src/Makefile	2020-07-14 03:38:14.000000000 +0900
-+++ src/lua-5.3.6/src/Makefile	2021-01-23 14:28:49.101004500 +0900
-@@ -43,7 +43,7 @@ LUAC_T=	luac
+--- origsrc/lua-5.4.3/src/Makefile	2021-02-10 03:47:17.000000000 +0900
++++ src/lua-5.4.3/src/Makefile
+@@ -44,7 +44,7 @@
  LUAC_O=	luac.o
  
  ALL_O= $(BASE_O) $(LUA_O) $(LUAC_O)
@@ -46,7 +38,7 @@
  ALL_A= $(LUA_A)
  
  # Targets start here.
-@@ -59,10 +59,10 @@ $(LUA_A): $(BASE_O)
+@@ -60,10 +60,10 @@
  	$(AR) $@ $(BASE_O)
  	$(RANLIB) $@
  
@@ -58,4 +50,4 @@
 +$(LUAC_T)$(EXEC_SUFFIX): $(LUAC_O) $(LUA_A)
  	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) $(LUA_A) $(LIBS)
  
- clean:
+ test:
