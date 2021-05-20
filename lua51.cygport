@@ -111,8 +111,8 @@ src_install() {
 	keepdir /usr/{lib,share}/lua/${LUA_VERSION}
 	keepdir /usr/share/lua/luarocks/{lib,share}/lua/${LUA_VERSION}
 
-	dodir /usr/lib/pkgconfig/lua${LUA_VERSION}
-	cat > ${D}/usr/lib/pkgconfig/lua${LUA_VERSION}/lua.pc <<_EOF
+	dodir /usr/lib/pkgconfig
+	cat > ${D}/usr/lib/pkgconfig/lua${LUA_VERSION}.pc <<_EOF
 V=${LUA_VERSION}
 R=${VERSION}
 
@@ -136,8 +136,7 @@ Libs: -L\${INSTALL_LIB} -llua\${V} -lm
 Cflags: -I\${INSTALL_INC}
 _EOF
 
-  dosym ./lua${LUA_VERSION}/lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc
-  dosym ./lua${LUA_VERSION}/lua.pc /usr/lib/pkgconfig/lua-${LUA_VERSION}.pc
+  dosym ./lua${LUA_VERSION}.pc /usr/lib/pkgconfig/lua-${LUA_VERSION}.pc
   dosym ./liblua${LUA_VERSION}.dll.a /usr/lib/liblua-${LUA_VERSION}.dll.a
 
   docinto /lua${LUA_CYG_V[${LUA_VERSION}]}/html
@@ -146,45 +145,26 @@ _EOF
   dodoc ${S}/README*
 
   # postinstall/preremove scripts setting alternatives
-  local -a ALT_PARAMS=( "${LUA_NUM_V[${LUA_VERSION}]}" ) # PRIORITY
   local POSTINSTALL=./postinstall/lua${LUA_CYG_V[${LUA_VERSION}]}.sh
   local PREREMOVE=./preremove/lua${LUA_CYG_V[${LUA_VERSION}]}.sh
 
-  local LINK_NAME=lua
-  ALT_PARAMS+=(
-    "/usr/bin/${LINK_NAME}"                       # LINK
-    "${LINK_NAME}"                                # NAME
-    "/usr/bin/${LINK_NAME}${LUA_VERSION}"         # PATH
-  )
-  LINK_NAME=luac
-  ALT_PARAMS+=(
-    "/usr/bin/${LINK_NAME}"                       # SLINK
-    "${LINK_NAME}"                                # SNAME
-    "/usr/bin/${LINK_NAME}${LUA_VERSION}"         # SPATH
-  )
-  LINK_NAME=lua.1.gz
-  ALT_PARAMS+=(
-    "/usr/share/man/man1/${LINK_NAME}"            # SLINK
-    "${LINK_NAME}"                                # SNAME
-    "/usr/share/man/man1/lua${LUA_VERSION}.1.gz"  # SPATH
-  )
-  LINK_NAME=luac.1.gz
-  ALT_PARAMS+=(
-    "/usr/share/man/man1/${LINK_NAME}"            # SLINK
-    "${LINK_NAME}"                                # SNAME
-    "/usr/share/man/man1/luac${LUA_VERSION}.1.gz" # SPATH
-  )
-  LINK_NAME=lua.pc
-  ALT_PARAMS+=(
-    "/usr/lib/pkgconfig/${LINK_NAME}"             # SLINK
-    "${LINK_NAME}"                                # SNAME
-    "/usr/lib/pkgconfig/lua${LUA_VERSION}.pc"     # SPATH
-  )
-
   mkdir -p ${POSTINSTALL%/*}
-  __alternatives_install "${ALT_PARAMS[@]}" > ${POSTINSTALL}
+  cat <<_EOF > ${POSTINSTALL}
+/usr/sbin/alternatives \\
+  --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_NUM_V[${LUA_VERSION}]} \\
+  --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
+  --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
+  --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
+  --slave /usr/lib/liblua.dll.a liblua.dll.a /usr/lib/liblua${LUA_VERSION}.dll.a \\
+  --slave /usr/lib/pkgconfig/lua.pc lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc \\
+;
+_EOF
   mkdir -p ${PREREMOVE%/*}
-  __alternatives_remove "${ALT_PARAMS[@]}" > ${PREREMOVE}
+  cat <<_EOF > ${PREREMOVE}
+/usr/sbin/alternatives \\
+  --remove lua /usr/bin/lua${LUA_VERSION} \\
+;
+_EOF
 
   insinto /etc/postinstall
   doins ${POSTINSTALL}
