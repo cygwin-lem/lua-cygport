@@ -101,8 +101,8 @@ src_install() {
 	keepdir /usr/{lib,share}/lua/${LUA_VERSION}
 	keepdir /usr/share/lua/luarocks/{lib,share}/lua/${LUA_VERSION}
 
-	dodir /usr/lib/pkgconfig/lua${LUA_VERSION}
-	cat > ${D}/usr/lib/pkgconfig/lua${LUA_VERSION}/lua.pc <<_EOF
+	dodir /usr/lib/pkgconfig
+	cat > ${D}/usr/lib/pkgconfig/lua${LUA_VERSION}.pc <<_EOF
 V=${LUA_VERSION}
 R=${VERSION}
 
@@ -126,8 +126,7 @@ Libs: -L\${INSTALL_LIB} -llua\${V}
 Cflags: -I\${INSTALL_INC}
 _EOF
 
-  dosym ./lua${LUA_VERSION}/lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc
-  dosym ./lua${LUA_VERSION}/lua.pc /usr/lib/pkgconfig/lua-${LUA_VERSION}.pc
+  dosym ./lua${LUA_VERSION}.pc /usr/lib/pkgconfig/lua-${LUA_VERSION}.pc
   dosym ./liblua${LUA_VERSION}.dll.a /usr/lib/liblua-${LUA_VERSION}.dll.a
 
   docinto /lua${LUA_CYG_V[${LUA_VERSION}]}/html
