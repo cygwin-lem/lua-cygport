@@ -39,7 +39,14 @@ __set_pkg_property() {
 _CYGPORT_RESTRICT_postinst_doc_=1
 
 __add_pkg "lua"
-__set_pkg_property "" CONTENTS  "--exclude=*.dll usr/bin/ usr/lib/lua/ usr/share/ etc/"
+__set_pkg_property "" CONTENTS "
+  --exclude=*.dll
+  usr/bin/
+  usr/lib/lua/
+  usr/share/
+  etc/postinstall/${NAME}.sh
+  etc/preremove/${NAME}.sh
+"
 __set_pkg_property "" OBSOLETES "lua-bit"
 
 __add_pkg "liblua${VERSION%.*}"
@@ -48,7 +55,13 @@ __set_pkg_property "" CONTENTS  "usr/bin/*.dll"
 
 __add_pkg "liblua-devel"
 __set_pkg_property "" SUMMARY   "${SUMMARY} (devel)"
-__set_pkg_property "" CONTENTS  "usr/include/ usr/lib/liblua*.dll.a usr/lib/pkgconfig/"
+__set_pkg_property "" CONTENTS "
+  usr/include/
+  usr/lib/liblua*.dll.a
+  usr/lib/pkgconfig/
+  etc/postinstall/lib${NAME}-devel.sh
+  etc/preremove/lib${NAME}-devel.sh
+"
 __set_pkg_property "" OBSOLETES "lua-devel"
 
 
@@ -129,30 +142,81 @@ _EOF
   dodoc ${S}/README*
 
   local POSTINSTALL=./postinstall/${NAME}.sh
+  local POSTINSTALL_DEV=./postinstall/lib${NAME}-devel.sh
   local PREREMOVE=./preremove/${NAME}.sh
+  local PREREMOVE_DEV=./preremove/lib${NAME}-devel.sh
 
-  mkdir -p ${POSTINSTALL%/*}
+  mkdir -p ./postinstall
   cat <<_EOF > ${POSTINSTALL}
-/usr/sbin/alternatives \\
-  --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
-  --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
-  --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
-  --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
-  --slave /usr/lib/liblua.dll.a liblua.dll.a /usr/lib/liblua${LUA_VERSION}.dll.a \\
-  --slave /usr/lib/pkgconfig/lua.pc lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc \\
-;
+if [ -x "/usr/bin/lua${LUA_VERSION}" ]; then
+  if [ -f "/usr/lib/liblua${LUA_VERSION}.dll.a" ]; then
+    /usr/sbin/alternatives \\
+    --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
+    --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
+    --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
+    --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
+    --slave /usr/lib/liblua.dll.a liblua.dll.a /usr/lib/liblua${LUA_VERSION}.dll.a \\
+    --slave /usr/lib/pkgconfig/lua.pc lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc \\
+    ;
+  else
+    /usr/sbin/alternatives \\
+    --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
+    --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
+    --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
+    --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
+    ;
+  fi
+else
+  /usr/sbin/alternatives \\
+  --remove lua /usr/bin/lua${LUA_VERSION} \\
+  || echo "--- Ignored an error."
+fi
 _EOF
-  mkdir -p ${PREREMOVE%/*}
+  cp ${POSTINSTALL} ${POSTINSTALL_DEV}
+  cat <<_EOF >> ${POSTINSTALL}
+mkdir -p /var/lib/lua
+touch /var/lib/lua/${NAME}-${LUA_VERSION}_flag
+_EOF
+  cat <<_EOF >> ${POSTINSTALL_DEV}
+mkdir -p /var/lib/lua
+touch /var/lib/lua/lib${NAME}-devel-${LUA_VERSION}_flag
+_EOF
+
+  mkdir -p ./preremove
   cat <<_EOF > ${PREREMOVE}
 /usr/sbin/alternatives \\
+--remove lua /usr/bin/lua${LUA_VERSION} \\
+|| echo "--- Ignored an error."
+_EOF
+  cat <<_EOF > ${PREREMOVE_DEV}
+if [ -f /var/lib/lua/${NAME}-${LUA_VERSION}_flag ]; then
+    /usr/sbin/alternatives \\
+    --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
+    --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
+    --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
+    --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
+    ;
+else
+  /usr/sbin/alternatives \\
   --remove lua /usr/bin/lua${LUA_VERSION} \\
-;
+  || echo "--- Ignored an error."
+fi
+_EOF
+  cat <<_EOF >> ${PREREMOVE}
+rm -f /var/lib/lua/${NAME}-${LUA_VERSION}_flag
+rmdir --ignore-fail-on-non-empty /var/lib/lua
+_EOF
+  cat <<_EOF >> ${PREREMOVE_DEV}
+rm -f /var/lib/lua/lib${NAME}-devel-${LUA_VERSION}_flag
+rmdir --ignore-fail-on-non-empty /var/lib/lua
 _EOF
 
   insinto /etc/postinstall
   doins ${POSTINSTALL}
+  doins ${POSTINSTALL_DEV}
   insinto /etc/preremove
   doins ${PREREMOVE}
+  doins ${PREREMOVE_DEV}
 }
 
 ################################
