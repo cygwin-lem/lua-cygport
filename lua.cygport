@@ -36,6 +36,11 @@ __set_pkg_property() {
   printf -v "${LOCAL_VN}_$2" "%s" "$3"
 }
 
+SRC_URI+=" winsymlinks-nativestrict.sh"
+__script_for_working_around_winsymlinks_nativestrict () {
+  cat ${S}/winsymlinks-nativestrict.sh
+}
+
 _CYGPORT_RESTRICT_postinst_doc_=1
 
 __add_pkg "lua"
@@ -147,7 +152,8 @@ _EOF
   local PREREMOVE_DEV=./preremove/lib${NAME}-devel.sh
 
   mkdir -p ./postinstall
-  cat <<_EOF > ${POSTINSTALL}
+  __script_for_working_around_winsymlinks_nativestrict > ${POSTINSTALL}
+  cat <<_EOF >> ${POSTINSTALL}
 if [ -x "/usr/bin/lua${LUA_VERSION}" ]; then
   if [ -f "/usr/lib/liblua${LUA_VERSION}.dll.a" ]; then
     /usr/sbin/alternatives \\
@@ -183,12 +189,14 @@ touch /var/lib/lua/lib${NAME}-devel-${LUA_VERSION}_flag
 _EOF
 
   mkdir -p ./preremove
-  cat <<_EOF > ${PREREMOVE}
+  __script_for_working_around_winsymlinks_nativestrict > ${PREREMOVE}
+  cat <<_EOF >> ${PREREMOVE}
 /usr/sbin/alternatives \\
 --remove lua /usr/bin/lua${LUA_VERSION} \\
 || echo "--- Ignored an error."
 _EOF
-  cat <<_EOF > ${PREREMOVE_DEV}
+  __script_for_working_around_winsymlinks_nativestrict > ${PREREMOVE_DEV}
+  cat <<_EOF >> ${PREREMOVE_DEV}
 if [ -f /var/lib/lua/${NAME}-${LUA_VERSION}_flag ]; then
     /usr/sbin/alternatives \\
     --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
