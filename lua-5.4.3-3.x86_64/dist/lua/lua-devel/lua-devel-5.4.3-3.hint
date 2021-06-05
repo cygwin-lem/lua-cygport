@@ -1,0 +1,8 @@
+category: _obsolete
+requires: liblua-devel
+sdesc: "Obsoleted by liblua-devel"
+ldesc: "The lua-devel package is obsolete.  Selecting this package for
+installation will cause the liblua-devel package, which replaces this
+one, to be installed instead."
+external-source: lua
+test:
