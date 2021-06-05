@@ -105,6 +105,102 @@ src_compile() {
 }
 
 ################################
+__script_head () {
+  local DAT_ROOT="$1"
+  local DAT_MASTER="$2"
+  local DAT_CHOICE="$3"
+  local DAT_BASE="$4"
+  local DAT_NAME="$5"
+
+  local DAT_FILE="${DAT_BASE}"
+  if [ -n "${DAT_NAME}" ]; then
+    DAT_FILE="${DAT_BASE}_${DAT_NAME}"
+  fi
+
+  echo "#!/bin/sh"
+  __script_for_working_around_winsymlinks_nativestrict
+  cat <<_EOF
+DAT_ROOT="${DAT_ROOT}"
+DAT_MASTER="${DAT_MASTER}"
+DAT_CHOICE="${DAT_CHOICE}"
+DAT_BASE="${DAT_BASE}"
+DAT_FILE="${DAT_FILE}"
+
+__dat_catenate () {
+  cat "\${DAT_ROOT}\${DAT_BASE}.dat"
+  find "\${DAT_ROOT}" -name "\${DAT_BASE}_*.dat" -print0 \\
+  | xargs -r -0 cat --
+}
+__dat_remove () {
+  rm -f "\${DAT_ROOT}\${DAT_FILE}.dat"
+  rmdir --ignore-fail-on-non-empty "\${DAT_ROOT}"
+}
+__dat_alternatives () {
+  if [ -f "\${DAT_ROOT}\${DAT_BASE}.dat" ]; then
+    __dat_catenate | sh
+    /usr/sbin/alternatives --verbose --display "\${DAT_MASTER}"
+  elif [ x"\${DAT_FILE}" = x"\${DAT_BASE}" ]; then
+    cat <<__EOF
+\$0:
+  alternatives removing a path '\${DAT_CHOICE}' from '\${DAT_MASTER}'...
+__EOF
+    /usr/sbin/alternatives \\
+    --remove "\${DAT_MASTER}" "\${DAT_CHOICE}" \\
+    && echo "  ok" || echo "  FAILED"
+  fi
+}
+_EOF
+}
+
+__script_postinstall () {
+  __script_head "$@"
+
+  cat <<_EOF
+mkdir -p "\${DAT_ROOT}"
+cat <<__EOF > "\${DAT_ROOT}\${DAT_FILE}.dat"
+_EOF
+
+  sed -e 's/\([\\\$]\)/\\\1/g'
+
+  cat <<_EOF
+__EOF
+__dat_alternatives
+_EOF
+}
+__script_preremove () {
+  __script_head "$@"
+  cat <<_EOF
+__dat_remove
+__dat_alternatives
+_EOF
+}
+
+__script_dat_params_lua () {
+  local LUA_VERSION=$1
+  cat <<_EOF
+#!/bin/sh
+DAT_ROOT="/var/lib/lua/"
+DAT_MASTER="lua"
+DAT_CHOICE="/usr/bin/lua${LUA_VERSION}"
+DAT_BASE="lua${LUA_VERSION}"
+
+_EOF
+}
+
+__script_postinstall_lua () {
+  local LUA_VERSION=$1
+  __script_dat_params_lua ${LUA_VERSION}
+  shift
+  __script_postinstall "\${DAT_ROOT}" "\${DAT_MASTER}" "\${DAT_CHOICE}" "\${DAT_BASE}" "$@"
+}
+__script_preremove_lua () {
+  local LUA_VERSION=$1
+  __script_dat_params_lua ${LUA_VERSION}
+  shift
+  __script_preremove "\${DAT_ROOT}" "\${DAT_MASTER}" "\${DAT_CHOICE}" "\${DAT_BASE}" "$@"
+}
+
+################################
 src_install() {
 	__set_LUA_MAKE_ARGS
 	cd ${B}
@@ -152,72 +248,26 @@ _EOF
   local PREREMOVE_DEV=./preremove/lib${NAME}-devel.sh
 
   mkdir -p ./postinstall
-  __script_for_working_around_winsymlinks_nativestrict > ${POSTINSTALL}
-  cat <<_EOF >> ${POSTINSTALL}
-if [ -x "/usr/bin/lua${LUA_VERSION}" ]; then
-  if [ -f "/usr/lib/liblua${LUA_VERSION}.dll.a" ]; then
-    /usr/sbin/alternatives \\
-    --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
-    --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
-    --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
-    --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
-    --slave /usr/lib/liblua.dll.a liblua.dll.a /usr/lib/liblua${LUA_VERSION}.dll.a \\
-    --slave /usr/lib/pkgconfig/lua.pc lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc \\
-    ;
-  else
-    /usr/sbin/alternatives \\
-    --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
-    --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
-    --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
-    --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
-    ;
-  fi
-else
-  /usr/sbin/alternatives \\
-  --remove lua /usr/bin/lua${LUA_VERSION} \\
-  || echo "--- Ignored an error."
-fi
-_EOF
-  cp ${POSTINSTALL} ${POSTINSTALL_DEV}
-  cat <<_EOF >> ${POSTINSTALL}
-mkdir -p /var/lib/lua
-touch /var/lib/lua/${NAME}-${LUA_VERSION}_flag
-_EOF
-  cat <<_EOF >> ${POSTINSTALL_DEV}
-mkdir -p /var/lib/lua
-touch /var/lib/lua/lib${NAME}-devel-${LUA_VERSION}_flag
+  mkdir -p ./preremove
+
+  __script_postinstall_lua ${LUA_VERSION} <<_EOF > ${POSTINSTALL}
+LUA_VERSION=${LUA_VERSION}
+LUA_VERSION_NUM=${LUA_VERSION_NUM}
+/usr/sbin/alternatives \\
+--install /usr/bin/lua lua /usr/bin/lua\${LUA_VERSION} \${LUA_VERSION_NUM} \\
+--slave /usr/bin/luac luac /usr/bin/luac\${LUA_VERSION} \\
+--slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua\${LUA_VERSION}.1.gz \\
+--slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac\${LUA_VERSION}.1.gz \\
 _EOF
 
-  mkdir -p ./preremove
-  __script_for_working_around_winsymlinks_nativestrict > ${PREREMOVE}
-  cat <<_EOF >> ${PREREMOVE}
-/usr/sbin/alternatives \\
---remove lua /usr/bin/lua${LUA_VERSION} \\
-|| echo "--- Ignored an error."
+  __script_preremove_lua ${LUA_VERSION} > ${PREREMOVE}
+
+  __script_postinstall_lua ${LUA_VERSION} devel <<_EOF > ${POSTINSTALL_DEV}
+--slave /usr/lib/liblua.dll.a liblua.dll.a /usr/lib/liblua\${LUA_VERSION}.dll.a \\
+--slave /usr/lib/pkgconfig/lua.pc lua.pc /usr/lib/pkgconfig/lua\${LUA_VERSION}.pc \\
 _EOF
-  __script_for_working_around_winsymlinks_nativestrict > ${PREREMOVE_DEV}
-  cat <<_EOF >> ${PREREMOVE_DEV}
-if [ -f /var/lib/lua/${NAME}-${LUA_VERSION}_flag ]; then
-    /usr/sbin/alternatives \\
-    --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_VERSION_NUM} \\
-    --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
-    --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
-    --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
-    ;
-else
-  /usr/sbin/alternatives \\
-  --remove lua /usr/bin/lua${LUA_VERSION} \\
-  || echo "--- Ignored an error."
-fi
-_EOF
-  cat <<_EOF >> ${PREREMOVE}
-rm -f /var/lib/lua/${NAME}-${LUA_VERSION}_flag
-rmdir --ignore-fail-on-non-empty /var/lib/lua
-_EOF
-  cat <<_EOF >> ${PREREMOVE_DEV}
-rm -f /var/lib/lua/lib${NAME}-devel-${LUA_VERSION}_flag
-rmdir --ignore-fail-on-non-empty /var/lib/lua
-_EOF
+
+  __script_preremove_lua ${LUA_VERSION} devel > ${PREREMOVE_DEV}
 
   insinto /etc/postinstall
   doins ${POSTINSTALL}
