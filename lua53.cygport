@@ -41,7 +41,8 @@ __set_pkg_property . CONTENTS  "\
   usr/*/lua/ \
   usr/share/doc/lua${LUA_CYG_V[${LUA_VERSION}]}*
   usr/share/man/*/lua*${LUA_VERSION}* \
-  etc/ \
+  etc/postinstall/lua${LUA_CYG_V[${LUA_VERSION}]}.sh \
+  etc/preremove/lua${LUA_CYG_V[${LUA_VERSION}]}.sh \
 "
 case ${LUA_VERSION} in
 5.1)  __set_pkg_property . OBSOLETES "lua${LUA_VERSION}" ;;
@@ -55,6 +56,8 @@ __set_pkg_property . CONTENTS  "\
   usr/include/ \
   usr/lib/liblua*.dll.a \
   usr/lib/pkgconfig/ \
+  etc/postinstall/lua${LUA_CYG_V[${LUA_VERSION}]}-devel.sh \
+  etc/preremove/lua${LUA_CYG_V[${LUA_VERSION}]}-devel.sh \
 "
 case ${LUA_VERSION} in
 5.1)  __set_pkg_property . OBSOLETES "lua${LUA_VERSION}-devel" ;;
@@ -139,29 +142,37 @@ _EOF
   # postinstall/preremove scripts setting alternatives
   local POSTINSTALL=./postinstall/lua${LUA_CYG_V[${LUA_VERSION}]}.sh
   local PREREMOVE=./preremove/lua${LUA_CYG_V[${LUA_VERSION}]}.sh
+  local POSTINSTALL_DEV=./postinstall/lua${LUA_CYG_V[${LUA_VERSION}]}-devel.sh
+  local PREREMOVE_DEV=./preremove/lua${LUA_CYG_V[${LUA_VERSION}]}-devel.sh
 
-  mkdir -p ${POSTINSTALL%/*}
-  cat <<_EOF > ${POSTINSTALL}
+  mkdir -p ./postinstall
+  mkdir -p ./preremove
+
+  __script_postinstall_lua ${LUA_VERSION} <<_EOF > ${POSTINSTALL}
+LUA_VERSION=${LUA_VERSION}
+LUA_VERSION_NUM=${LUA_NUM_V[${LUA_VERSION}]}
 /usr/sbin/alternatives \\
-  --install /usr/bin/lua lua /usr/bin/lua${LUA_VERSION} ${LUA_NUM_V[${LUA_VERSION}]} \\
-  --slave /usr/bin/luac luac /usr/bin/luac${LUA_VERSION} \\
-  --slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua${LUA_VERSION}.1.gz \\
-  --slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac${LUA_VERSION}.1.gz \\
-  --slave /usr/lib/liblua.dll.a liblua.dll.a /usr/lib/liblua${LUA_VERSION}.dll.a \\
-  --slave /usr/lib/pkgconfig/lua.pc lua.pc /usr/lib/pkgconfig/lua${LUA_VERSION}.pc \\
-;
+--install /usr/bin/lua lua /usr/bin/lua\${LUA_VERSION} \${LUA_VERSION_NUM} \\
+--slave /usr/bin/luac luac /usr/bin/luac\${LUA_VERSION} \\
+--slave /usr/share/man/man1/lua.1.gz lua.1.gz /usr/share/man/man1/lua\${LUA_VERSION}.1.gz \\
+--slave /usr/share/man/man1/luac.1.gz luac.1.gz /usr/share/man/man1/luac\${LUA_VERSION}.1.gz \\
 _EOF
-  mkdir -p ${PREREMOVE%/*}
-  cat <<_EOF > ${PREREMOVE}
-/usr/sbin/alternatives \\
-  --remove lua /usr/bin/lua${LUA_VERSION} \\
-;
+
+  __script_preremove_lua ${LUA_VERSION} > ${PREREMOVE}
+
+  __script_postinstall_lua ${LUA_VERSION} devel <<_EOF > ${POSTINSTALL_DEV}
+--slave /usr/lib/liblua.dll.a liblua.dll.a /usr/lib/liblua\${LUA_VERSION}.dll.a \\
+--slave /usr/lib/pkgconfig/lua.pc lua.pc /usr/lib/pkgconfig/lua\${LUA_VERSION}.pc \\
 _EOF
+
+  __script_preremove_lua ${LUA_VERSION} devel > ${PREREMOVE_DEV}
 
   insinto /etc/postinstall
   doins ${POSTINSTALL}
+  doins ${POSTINSTALL_DEV}
   insinto /etc/preremove
   doins ${PREREMOVE}
+  doins ${PREREMOVE_DEV}
 }
 
 ################################
