@@ -251,7 +251,6 @@ declare -A LUA_PATH_V
 declare -A LUA_CPATH_V
 declare -A LUA_CYG_V
 declare -A LUA_NUM_V
-declare -A LUA_PKG_CONFIG_PATH_V
 
 __lua_config_variables() {
   local vlist=${1}
@@ -284,7 +283,6 @@ __lua_config_variables() {
     local v1=$( printf '%s' "${v}" | sed -e 's/\..*//;s/^0*\([0-9]\)/\1/' )
     local v2=$( printf '%s' "${v}" | sed -e 's/^[^\.]*//;s/^\.//;s/\..*//;s/^0*\([0-9]\)/\1/' )
     LUA_NUM_V[${v}]=$((v1 * 100 + v2))
-    LUA_PKG_CONFIG_PATH_V[${v}]=/usr/lib/pkgconfig/lua${v}
   done
 }
 
@@ -296,6 +294,7 @@ __set_variables_lua () {
   LUAC=${LUA_BIN_V[${v}]}/luac${v}
   LUA_VERSION=${v}
   LUA_VERSION_NUM=${LUA_NUM_V[${v}]}
+  LUA_VERSION_CYG=${LUA_CYG_V[${v}]}
   LUA_INCLUDEDIR=${LUA_INC_V[${v}]}
   LUA_LIBDIR=${LUA_CMOD_V[${v}]}
   LUA_SCRIPTDIR=${LUA_LMOD_V[${v}]}
