@@ -1,0 +1,453 @@
+################################################################
+SRC_URI+=" lua.experiment"
+
+################################################################
+: ${LUA_VERSIONS:=all}
+LUA_VERSIONS_ALL="5.3:5.4"
+LUA_VERSIONS_LATEST=${LUA_VERSIONS_ALL##*:}
+case ${LUA_VERSIONS} in
+all)
+  LUA_VERSIONS=${LUA_VERSIONS_ALL}
+  ;;
+latest)
+  LUA_VERSIONS=${LUA_VERSIONS_LATEST}
+  ;;
+esac
+
+################################################################
+__str_version_cyg() {
+  # Remove a period from a string "x.y" when both x and y are single-digit.
+  printf '%s' "$1" | sed -E 's/^([[:digit:]])\.([[:digit:]])$/\1\2/'
+}
+
+################################################################
+__current_pkg() {
+  THIS_PN="$1"
+}
+
+__add_pkg() {
+  THIS_PN="$1"
+  PKG_NAMES+=" ${THIS_PN}"
+}
+
+__set_pkg_property() {
+  local LOCAL_PN="$1"
+  if [ -z "${LOCAL_PN//[-+\._]/}" ]; then
+    LOCAL_PN="${THIS_PN}"
+  fi
+  local LOCAL_VN="${LOCAL_PN//[-+\.]/_}"
+  printf -v "${LOCAL_VN}_$2" "%s" "$3"
+}
+
+__append_pkg_property() {
+  local LOCAL_PN="$1"
+  if [ -z "${LOCAL_PN//[-+\._]/}" ]; then
+    LOCAL_PN="${THIS_PN}"
+  fi
+  local LOCAL_VN="${LOCAL_PN//[-+\.]/_}"
+  local LOCAL_VN_PROPERTY="${LOCAL_VN}_$2"
+  printf -v "${LOCAL_VN_PROPERTY}" "%s" "${!LOCAL_VN_PROPERTY}$3"
+}
+
+################################################################
+cpdirs() {
+  tar -C "$1" -cf - . | tar -C "$2" -xpf -
+}
+
+################################################################
+__doinsdir () {
+  local src="$1"
+  local dst="$2"
+  local f
+  [ -d "${src}" ] || error "__doinsdir ${src} failed: not a directory"
+  pushd "${src}"
+  for f in $(find . -type d); do
+    insinto "${dst}/$f"
+    doins $(find "$f" -maxdepth 1 -not -type d)
+  done
+  popd
+}
+
+__dodocdir () {
+  local src="$1"
+  local dst="$2"
+  local f
+  [ -d "${src}" ] || error "__dodocdir ${src} failed: not a directory"
+  pushd "${src}"
+  for f in $(find . -type d); do
+    docinto "${dst}/$f"
+    dodoc $(find "$f" -maxdepth 1 -not -type d)
+  done
+  popd
+}
+
+################################################################
+# __alternatives_install PRIORITY LINK NAME PATH [SLINK SNAME SPATH]*
+__alternatives_install(){
+  local ALT_PRIO=$1
+  shift \
+  || error "__alternatives_install(): needs parameters PRIORITY LINK NAME PATH"
+  local ALT_LINK=$1
+  local ALT_NAME=$2
+  local ALT_PATH=$3
+  shift 3 \
+  || error "__alternatives_install(): needs parameters PRIORITY LINK NAME PATH"
+
+  cat <<- _EOF_
+	/usr/sbin/alternatives \\
+	  --install ${ALT_LINK} \\
+	    ${ALT_NAME} ${ALT_PATH} \\
+	    ${ALT_PRIO} \\
+	_EOF_
+  while [ -n "$1" ]; do
+    ALT_LINK=$1
+    ALT_NAME=$2
+    ALT_PATH=$3
+    shift 3 \
+    || error "__alternatives_install(): needs parameters SLINK SNAME SPATH"
+    cat <<- _EOF_
+	  --slave ${ALT_LINK} \\
+	    ${ALT_NAME} ${ALT_PATH} \\
+	_EOF_
+  done
+  cat <<- _EOF_
+	  ;
+	_EOF_
+}
+
+# __alternatives_remove PRIORITY LINK NAME PATH [SLINK SNAME SPATH]*
+#  (only NAME and PATH are effective, and the rest are ignored)
+__alternatives_remove(){
+  local ALT_PRIO=$1
+  shift || error "__alternatives_remove(): needs parameters PRIORITY LINK NAME PATH"
+  local ALT_LINK=$1
+  local ALT_NAME=$2
+  local ALT_PATH=$3
+  shift 3 || error "__alternatives_remove(): needs parameters PRIORITY LINK NAME PATH"
+
+  cat <<- _EOF_
+	/usr/sbin/alternatives \\
+	  --remove \\
+	    ${ALT_NAME} ${ALT_PATH} \\
+	  ;
+	_EOF_
+}
+
+################################################################
+lua_fix_shebang_version_print() {
+  local LUA_VERSION="$1"
+  local interp="/usr/bin/lua${LUA_VERSION}"
+  local src="$2"
+  local head=$(head -1 "${src}")
+
+  [ x"${head}" = x'#!'"${head#\#\!}" ] \
+  || error "lua_fix_shebang_version_print $1 $2 failed: no shebang"
+
+  printf "%s\n" "${head}" \
+  | sed -e 's;^#![[:space:]]*\(\([^[:space:]]*/\|\)env[[:space:]]*[^[:space:]][^[:space:]]*\|[^[:space:]]*\)\(.*\);#!'"${interp}"'\3;'
+  tail +2 "${src}"
+}
+
+################################################################
+lua_path_from_dirs() {
+  local p=
+  local f
+  for f in "$@"; do
+    p+="${f%/}/?.lua;${f%/}/?/init.lua;"
+  done
+  printf '%s' "${p%;}"
+}
+
+lua_cpath_from_dirs() {
+  local p=
+  local f
+  for f in "$@"; do
+    p+="${f%/}/?.so;${f%/}/?.dll;"
+  done
+  printf '%s' "${p%;}"
+}
+
+################################################################
+lua_path_test() {
+  local LUA_VERSION="${1}"
+  shift
+  lua_path_from_dirs \
+    "$@" \
+    "${D}${LUA_LMOD_V[${LUA_VERSION}]}" \
+    "${D}${LUA_CMOD_V[${LUA_VERSION}]}" \
+    "${LUA_LMOD_V[${LUA_VERSION}]}" \
+    "${LUA_CMOD_V[${LUA_VERSION}]}" \
+    ;
+}
+
+lua_cpath_test() {
+  local LUA_VERSION="${1}"
+  shift
+  lua_cpath_from_dirs \
+    "$@" \
+    "${D}${LUA_CMOD_V[${LUA_VERSION}]}" \
+    "${LUA_CMOD_V[${LUA_VERSION}]}" \
+    ;
+}
+
+################################################################
+src_compile_lua_versions() {
+  local LUA_VERSIONS="${1}"
+  local LUA_PKG_NAME="${2}"
+  local LUA_VERSION
+  for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    src_compile_lua ${LUA_VERSION} ${LUA_PKG_NAME}
+  done
+}
+
+src_install_lua_versions() {
+  local LUA_VERSIONS="${1}"
+  local LUA_PKG_NAME="${2}"
+  local LUA_VERSION
+  for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    src_install_lua ${LUA_VERSION} ${LUA_PKG_NAME}
+  done
+}
+
+src_test_lua_versions() {
+  local LUA_VERSIONS="${1}"
+  local LUA_PKG_NAME="${2}"
+  local LUA_VERSION
+  for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    src_test_lua ${LUA_VERSION} ${LUA_PKG_NAME}
+  done
+}
+
+readonly -f \
+  src_compile_lua_versions \
+  src_install_lua_versions \
+  src_test_lua_versions \
+  ;
+
+################################################################
+src_compile() {
+  src_compile_lua_versions ${LUA_VERSIONS} ${LUA_PKG_NAME}
+}
+
+src_install() {
+  src_install_lua_versions ${LUA_VERSIONS} ${LUA_PKG_NAME}
+}
+
+src_test() {
+  src_test_lua_versions ${LUA_VERSIONS} ${LUA_PKG_NAME}
+}
+
+################################################################
+declare -A LUA_REL_V
+declare -A LUA_BIN_V
+declare -A LUA_INC_V
+declare -A LUA_LIB_V
+declare -A LUA_MAN_V
+declare -A LUA_LMOD_V
+declare -A LUA_CMOD_V
+declare -A LUA_CFLAGS_V
+declare -A LUA_LIBS_V
+declare -A LUA_PATH_V
+declare -A LUA_CPATH_V
+declare -A LUA_CYG_V
+declare -A LUA_NUM_V
+declare -A LUA_PKG_CONFIG_PATH_V
+
+__lua_config_variables() {
+  local vlist=${1}
+  local v
+  for v in ${vlist//:/ }; do
+    if pkg-config --exists lua${v}; then
+      LUA_REL_V[${v}]=$(pkg-config --variable=R lua${v})
+      LUA_BIN_V[${v}]=$(pkg-config --variable=INSTALL_BIN lua${v})
+      LUA_INC_V[${v}]=$(pkg-config --variable=INSTALL_INC lua${v})
+      LUA_LIB_V[${v}]=$(pkg-config --variable=INSTALL_LIB lua${v})
+      LUA_MAN_V[${v}]=$(pkg-config --variable=INSTALL_MAN lua${v})
+      LUA_LMOD_V[${v}]=$(pkg-config --variable=INSTALL_LMOD lua${v})
+      LUA_CMOD_V[${v}]=$(pkg-config --variable=INSTALL_CMOD lua${v})
+      LUA_CFLAGS_V[${v}]=$(pkg-config --cflags lua${v})
+      LUA_LIBS_V[${v}]=$(pkg-config --libs lua${v})
+    else
+      LUA_REL_V[${v}]=${v}
+      LUA_BIN_V[${v}]=/usr/bin
+      LUA_INC_V[${v}]=/usr/include/lua${v}
+      LUA_LIB_V[${v}]=/usr/lib
+      LUA_MAN_V[${v}]=/usr/share/man/man1
+      LUA_LMOD_V[${v}]=/usr/share/lua/${v}
+      LUA_CMOD_V[${v}]=/usr/lib/lua/${v}
+      LUA_CFLAGS_V[${v}]="-I${LUA_INC_V[${v}]}"
+      LUA_LIBS_V[${v}]="-L${LUA_LIB_V[${v}]} -llua${v}"
+    fi
+    LUA_PATH_V[${v}]=$(lua_path_from_dirs ${LUA_LMOD_V[${v}]} ${LUA_CMOD_V[${v}]} .)
+    LUA_CPATH_V[${v}]=$(lua_cpath_from_dirs ${LUA_CMOD_V[${v}]} .)
+    LUA_CYG_V[${v}]=$(__str_version_cyg ${v})
+    local v1=$( printf '%s' "${v}" | sed -e 's/\..*//;s/^0*\([0-9]\)/\1/' )
+    local v2=$( printf '%s' "${v}" | sed -e 's/^[^\.]*//;s/^\.//;s/\..*//;s/^0*\([0-9]\)/\1/' )
+    LUA_NUM_V[${v}]=$((v1 * 100 + v2))
+    LUA_PKG_CONFIG_PATH_V[${v}]=/usr/lib/pkgconfig/lua${v}
+  done
+}
+
+################################################################
+# Setting variables for specified Lua version in accordance with lua.cygclass
+__set_variables_lua () {
+  local v=$1
+  LUA=${LUA_BIN_V[${v}]}/lua${v}
+  LUAC=${LUA_BIN_V[${v}]}/luac${v}
+  LUA_VERSION=${v}
+  LUA_VERSION_NUM=${LUA_NUM_V[${v}]}
+  LUA_INCLUDEDIR=${LUA_INC_V[${v}]}
+  LUA_LIBDIR=${LUA_CMOD_V[${v}]}
+  LUA_SCRIPTDIR=${LUA_LMOD_V[${v}]}
+  LUA_CFLAGS=${LUA_CFLAGS_V[${v}]}
+  LUA_LIBS=${LUA_LIBS_V[${v}]}
+}
+
+################################################################
+# A workaround scirpt in case CYGWIN variable has 'winsymlinks:nativestrict'
+__script_for_working_around_winsymlinks_nativestrict () {
+  cat <<'_EOF'
+################################################################
+# __check_cygwin_env ():
+#   a function to extract the last setting of a specified
+#   option in CYGWIN variable.
+#
+#   Usage: __check_cygwin_env option_name
+#
+#   cf. The Cygwin User's Guide: The CYGWIN environment variable [1].
+#   [1]: https://cygwin.com/cygwin-ug-net/using-cygwinenv.html
+#
+__check_cygwin_env () {
+  X_R=''
+  X_C=`printf "%s" "$1" | sed -e 's/^no//'`        # Remove a prefix 'no'
+  for X_OPT in ${CYGWIN}; do
+    X_T="${X_OPT}"
+    X_T=`printf "%s" "${X_T}" | sed -e 's/^no//'`  # Remove a prefix 'no'
+    X_T=`printf "%s" "${X_T}" | sed -e 's/:.*$//'` # Remove optional parameters
+    if [ x"${X_T}" = x"${X_C}" ]; then
+      X_R="${X_OPT}"
+    fi
+  done
+  printf "%s" "${X_R}"
+}
+
+################################################################
+# A workaround when CYGWIN variable has 'winsymlinks:nativestrict'
+#
+if [ x"winsymlinks:nativestrict" = x"`__check_cygwin_env winsymlinks`" ]; then
+  echo "$0: *** WARNING ***"
+  echo "  CYGWIN variable has 'winsymlinks:nativestrict'..."
+  echo "  We are overriding it by 'winsymlinks:native' in this script"
+  export CYGWIN="${CYGWIN} winsymlinks:native"
+fi
+
+################################################################
+
+_EOF
+}
+
+################################################################
+# Helper functions for generating postinstall/preremove scripts
+
+__script_head () {
+  local DAT_ROOT="$1"
+  local DAT_MASTER="$2"
+  local DAT_CHOICE="$3"
+  local DAT_BASE="$4"
+  local DAT_NAME="$5"
+
+  local DAT_FILE="${DAT_BASE}"
+  if [ -n "${DAT_NAME}" ]; then
+    DAT_FILE="${DAT_BASE}_${DAT_NAME}"
+  fi
+
+  echo "#!/bin/sh"
+  __script_for_working_around_winsymlinks_nativestrict
+  cat <<_EOF
+DAT_ROOT="${DAT_ROOT}"
+DAT_MASTER="${DAT_MASTER}"
+DAT_CHOICE="${DAT_CHOICE}"
+DAT_BASE="${DAT_BASE}"
+DAT_FILE="${DAT_FILE}"
+
+__dat_catenate () {
+  cat "\${DAT_ROOT}\${DAT_BASE}.dat"
+  find "\${DAT_ROOT}" -name "\${DAT_BASE}_*.dat" -print0 \\
+  | xargs -r -0 cat --
+}
+__dat_remove () {
+  rm -f "\${DAT_ROOT}\${DAT_FILE}.dat"
+  rmdir --ignore-fail-on-non-empty "\${DAT_ROOT}"
+}
+__dat_alternatives () {
+  if [ -f "\${DAT_ROOT}\${DAT_BASE}.dat" ]; then
+    __dat_catenate | sh
+    /usr/sbin/alternatives --verbose --display "\${DAT_MASTER}"
+  elif [ x"\${DAT_FILE}" = x"\${DAT_BASE}" ]; then
+    cat <<__EOF
+\$0:
+  alternatives removing a path '\${DAT_CHOICE}' from '\${DAT_MASTER}'...
+__EOF
+    /usr/sbin/alternatives \\
+    --remove "\${DAT_MASTER}" "\${DAT_CHOICE}" \\
+    && echo "  ok" || echo "  FAILED"
+  fi
+}
+_EOF
+}
+
+__script_postinstall () {
+  __script_head "$@"
+
+  cat <<_EOF
+mkdir -p "\${DAT_ROOT}"
+cat <<__EOF > "\${DAT_ROOT}\${DAT_FILE}.dat"
+_EOF
+
+  sed -e 's/\([\\\$]\)/\\\1/g'
+
+  cat <<_EOF
+__EOF
+__dat_alternatives
+_EOF
+}
+__script_preremove () {
+  __script_head "$@"
+  cat <<_EOF
+__dat_remove
+__dat_alternatives
+_EOF
+}
+
+################################
+# For Lua packages
+
+__script_dat_params_lua () {
+  local LUA_VERSION=$1
+  cat <<_EOF
+#!/bin/sh
+DAT_ROOT="/var/lib/lua/"
+DAT_MASTER="lua"
+DAT_CHOICE="/usr/bin/lua${LUA_VERSION}"
+DAT_BASE="lua${LUA_VERSION}"
+
+_EOF
+}
+
+__script_postinstall_lua () {
+  local LUA_VERSION=$1
+  __script_dat_params_lua ${LUA_VERSION}
+  shift
+  __script_postinstall "\${DAT_ROOT}" "\${DAT_MASTER}" "\${DAT_CHOICE}" "\${DAT_BASE}" "$@"
+}
+__script_preremove_lua () {
+  local LUA_VERSION=$1
+  __script_dat_params_lua ${LUA_VERSION}
+  shift
+  __script_preremove "\${DAT_ROOT}" "\${DAT_MASTER}" "\${DAT_CHOICE}" "\${DAT_BASE}" "$@"
+}
+
+################################################################
+__lua_config_variables "${LUA_VERSIONS}"
+
+################################################################
