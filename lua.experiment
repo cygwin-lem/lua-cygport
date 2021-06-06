@@ -289,6 +289,165 @@ __lua_config_variables() {
 }
 
 ################################################################
+# Setting variables for specified Lua version in accordance with lua.cygclass
+__set_variables_lua () {
+  local v=$1
+  LUA=${LUA_BIN_V[${v}]}/lua${v}
+  LUAC=${LUA_BIN_V[${v}]}/luac${v}
+  LUA_VERSION=${v}
+  LUA_VERSION_NUM=${LUA_NUM_V[${v}]}
+  LUA_INCLUDEDIR=${LUA_INC_V[${v}]}
+  LUA_LIBDIR=${LUA_CMOD_V[${v}]}
+  LUA_SCRIPTDIR=${LUA_LMOD_V[${v}]}
+  LUA_CFLAGS=${LUA_CFLAGS_V[${v}]}
+  LUA_LIBS=${LUA_LIBS_V[${v}]}
+}
+
+################################################################
+# A workaround scirpt in case CYGWIN variable has 'winsymlinks:nativestrict'
+__script_for_working_around_winsymlinks_nativestrict () {
+  cat <<'_EOF'
+################################################################
+# __check_cygwin_env ():
+#   a function to extract the last setting of a specified
+#   option in CYGWIN variable.
+#
+#   Usage: __check_cygwin_env option_name
+#
+#   cf. The Cygwin User's Guide: The CYGWIN environment variable [1].
+#   [1]: https://cygwin.com/cygwin-ug-net/using-cygwinenv.html
+#
+__check_cygwin_env () {
+  X_R=''
+  X_C=`printf "%s" "$1" | sed -e 's/^no//'`        # Remove a prefix 'no'
+  for X_OPT in ${CYGWIN}; do
+    X_T="${X_OPT}"
+    X_T=`printf "%s" "${X_T}" | sed -e 's/^no//'`  # Remove a prefix 'no'
+    X_T=`printf "%s" "${X_T}" | sed -e 's/:.*$//'` # Remove optional parameters
+    if [ x"${X_T}" = x"${X_C}" ]; then
+      X_R="${X_OPT}"
+    fi
+  done
+  printf "%s" "${X_R}"
+}
+
+################################################################
+# A workaround when CYGWIN variable has 'winsymlinks:nativestrict'
+#
+if [ x"winsymlinks:nativestrict" = x"`__check_cygwin_env winsymlinks`" ]; then
+  echo "$0: *** WARNING ***"
+  echo "  CYGWIN variable has 'winsymlinks:nativestrict'..."
+  echo "  We are overriding it by 'winsymlinks:native' in this script"
+  export CYGWIN="${CYGWIN} winsymlinks:native"
+fi
+
+################################################################
+
+_EOF
+}
+
+################################################################
+# Helper functions for generating postinstall/preremove scripts
+
+__script_head () {
+  local DAT_ROOT="$1"
+  local DAT_MASTER="$2"
+  local DAT_CHOICE="$3"
+  local DAT_BASE="$4"
+  local DAT_NAME="$5"
+
+  local DAT_FILE="${DAT_BASE}"
+  if [ -n "${DAT_NAME}" ]; then
+    DAT_FILE="${DAT_BASE}_${DAT_NAME}"
+  fi
+
+  echo "#!/bin/sh"
+  __script_for_working_around_winsymlinks_nativestrict
+  cat <<_EOF
+DAT_ROOT="${DAT_ROOT}"
+DAT_MASTER="${DAT_MASTER}"
+DAT_CHOICE="${DAT_CHOICE}"
+DAT_BASE="${DAT_BASE}"
+DAT_FILE="${DAT_FILE}"
+
+__dat_catenate () {
+  cat "\${DAT_ROOT}\${DAT_BASE}.dat"
+  find "\${DAT_ROOT}" -name "\${DAT_BASE}_*.dat" -print0 \\
+  | xargs -r -0 cat --
+}
+__dat_remove () {
+  rm -f "\${DAT_ROOT}\${DAT_FILE}.dat"
+  rmdir --ignore-fail-on-non-empty "\${DAT_ROOT}"
+}
+__dat_alternatives () {
+  if [ -f "\${DAT_ROOT}\${DAT_BASE}.dat" ]; then
+    __dat_catenate | sh
+    /usr/sbin/alternatives --verbose --display "\${DAT_MASTER}"
+  elif [ x"\${DAT_FILE}" = x"\${DAT_BASE}" ]; then
+    cat <<__EOF
+\$0:
+  alternatives removing a path '\${DAT_CHOICE}' from '\${DAT_MASTER}'...
+__EOF
+    /usr/sbin/alternatives \\
+    --remove "\${DAT_MASTER}" "\${DAT_CHOICE}" \\
+    && echo "  ok" || echo "  FAILED"
+  fi
+}
+_EOF
+}
+
+__script_postinstall () {
+  __script_head "$@"
+
+  cat <<_EOF
+mkdir -p "\${DAT_ROOT}"
+cat <<__EOF > "\${DAT_ROOT}\${DAT_FILE}.dat"
+_EOF
+
+  sed -e 's/\([\\\$]\)/\\\1/g'
+
+  cat <<_EOF
+__EOF
+__dat_alternatives
+_EOF
+}
+__script_preremove () {
+  __script_head "$@"
+  cat <<_EOF
+__dat_remove
+__dat_alternatives
+_EOF
+}
+
+################################
+# For Lua packages
+
+__script_dat_params_lua () {
+  local LUA_VERSION=$1
+  cat <<_EOF
+#!/bin/sh
+DAT_ROOT="/var/lib/lua/"
+DAT_MASTER="lua"
+DAT_CHOICE="/usr/bin/lua${LUA_VERSION}"
+DAT_BASE="lua${LUA_VERSION}"
+
+_EOF
+}
+
+__script_postinstall_lua () {
+  local LUA_VERSION=$1
+  __script_dat_params_lua ${LUA_VERSION}
+  shift
+  __script_postinstall "\${DAT_ROOT}" "\${DAT_MASTER}" "\${DAT_CHOICE}" "\${DAT_BASE}" "$@"
+}
+__script_preremove_lua () {
+  local LUA_VERSION=$1
+  __script_dat_params_lua ${LUA_VERSION}
+  shift
+  __script_preremove "\${DAT_ROOT}" "\${DAT_MASTER}" "\${DAT_CHOICE}" "\${DAT_BASE}" "$@"
+}
+
+################################################################
 __lua_config_variables "${LUA_VERSIONS}"
 
 ################################################################
