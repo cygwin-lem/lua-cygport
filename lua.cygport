@@ -24,7 +24,6 @@ source lua.experiment
 __add_pkg "lua"
 __set_pkg_property . CONTENTS "usr/share/doc/lua/"
 __set_pkg_property . REQUIRES "lua${LUA_CYG_V[${LUA_VERSION}]}"
-__set_pkg_property . OBSOLETES "lua-bit"
 
 __add_pkg "lua-devel"
 __set_pkg_property . SUMMARY "${SUMMARY} (devel)"
