@@ -16,6 +16,7 @@ PATCH_URI="
   5.4.3-Makefile.patch
   5.4.3-luaconf_h.patch
   5.4.3-bugs-5.4.3-3.patch
+  5.4.3-bugs-5.4.3-5.patch
 "
 
 BUILD_REQUIRES="\
