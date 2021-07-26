@@ -191,11 +191,33 @@ lua_cpath_test() {
 }
 
 ################################################################
+set_packages_lua() {
+  __add_pkg "lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}"
+  __set_pkg_property . CONTENTS "
+    usr/share/doc/lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}/
+    usr/*/lua/${LUA_VERSION}/
+  "
+  __set_pkg_property . REQUIRES "lua${LUA_VERSION_CYG}"
+}
+
+################################################################
+set_packages_lua_versions() {
+  local LUA_VERSIONS="${1}"
+  local LUA_PKG_NAME="${2}"
+  local LUA_VERSION
+  for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    __set_variables_lua ${LUA_VERSION}
+    set_packages_lua ${LUA_VERSION} ${LUA_PKG_NAME}
+  done
+}
+
 src_compile_lua_versions() {
   local LUA_VERSIONS="${1}"
   local LUA_PKG_NAME="${2}"
   local LUA_VERSION
   for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    __set_variables_lua ${LUA_VERSION}
+    inform "[Compile] Lua ${LUA_VERSION}: ${LUA_PKG_NAME}"
     src_compile_lua ${LUA_VERSION} ${LUA_PKG_NAME}
   done
 }
@@ -205,6 +227,9 @@ src_install_lua_versions() {
   local LUA_PKG_NAME="${2}"
   local LUA_VERSION
   for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    __set_variables_lua ${LUA_VERSION}
+    inform "[Install] Lua ${LUA_VERSION}: ${LUA_PKG_NAME}"
+    docinto /lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}
     src_install_lua ${LUA_VERSION} ${LUA_PKG_NAME}
   done
 }
@@ -214,11 +239,15 @@ src_test_lua_versions() {
   local LUA_PKG_NAME="${2}"
   local LUA_VERSION
   for LUA_VERSION in ${LUA_VERSIONS//:/ }; do
+    __set_variables_lua ${LUA_VERSION}
+    inform "[Test] Lua ${LUA_VERSION}: ${LUA_PKG_NAME}"
+    ${LUA} -v
     src_test_lua ${LUA_VERSION} ${LUA_PKG_NAME}
   done
 }
 
 readonly -f \
+  set_packages_lua_versions \
   src_compile_lua_versions \
   src_install_lua_versions \
   src_test_lua_versions \
