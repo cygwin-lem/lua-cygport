@@ -10,6 +10,8 @@ HOMEPAGE="https://www.lua.org/"
 SRC_URI="https://www.lua.org/ftp/lua-${VERSION}.tar.gz"
 PATCH_URI="
   5.4.3-bugs-5.4.3-3.patch
+  5.4.3-bugs-5.4.3-5.patch
+  5.4.3-bugs-5.4.3-6.patch
   5.4.3-Makefile.patch
   5.3.0-luaconf_h.patch
 "

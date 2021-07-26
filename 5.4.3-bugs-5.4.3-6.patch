@@ -1,0 +1,13 @@
+# cf. https://www.lua.org/bugs.html#5.4.3-6
+diff -u -r origsrc/lua-5.4.3/src/lvm.c src/lua-5.4.3/src/lvm.c
+--- origsrc/lua-5.4.3/src/lvm.c	2021-03-15 22:32:52.000000000 +0900
++++ src/lua-5.4.3/src/lvm.c
+@@ -766,7 +766,7 @@
+ /*
+ ** Shift left operation. (Shift right just negates 'y'.)
+ */
+-#define luaV_shiftr(x,y)	luaV_shiftl(x,-(y))
++#define luaV_shiftr(x,y)	luaV_shiftl(x,intop(-, 0, y))
+ 
+ lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y) {
+   if (y < 0) {  /* shift right? */
