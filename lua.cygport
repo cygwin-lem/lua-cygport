@@ -1,6 +1,6 @@
 ################################
 NAME="lua"
-VERSION=5.4.3
+VERSION=5.4.4
 RELEASE=10
 CATEGORY="Lua Interpreters"
 SUMMARY="Meta-package for Lua default version"
