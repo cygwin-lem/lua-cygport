@@ -1,6 +1,6 @@
 ################################
 NAME="lua54"
-VERSION=5.4.4
+VERSION=5.4.6
 RELEASE=1
 CATEGORY="Lua Interpreters"
 SUMMARY="Lua programming language interpreter"
