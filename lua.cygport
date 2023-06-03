@@ -10,6 +10,10 @@ It supports procedural programming, object-oriented programming,
 functional programming, data-driven programming, and data description.
 "
 HOMEPAGE="https://www.lua.org/"
+LICENSE="MIT"
+# cf. https://www.cygwin.com/packaging-hint-files.html#pvr-src.hint
+#     https://spdx.org/licenses/MIT.html
+
 SRC_URI=
 SRC_DIR=.
 
