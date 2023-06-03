@@ -11,6 +11,10 @@ functional programming, data-driven programming, and data description.
 "
 HOMEPAGE="https://www.lua.org/"
 SRC_URI="https://www.lua.org/ftp/lua-${VERSION}.tar.gz"
+LICENSE="MIT"
+# cf. https://www.cygwin.com/packaging-hint-files.html#pvr-src.hint
+#     https://spdx.org/licenses/MIT.html
+
 SRC_DIR="lua-${VERSION}"
 PATCH_URI="
   5.2.4-bugs-5.3.0-3.patch
