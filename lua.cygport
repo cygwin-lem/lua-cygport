@@ -7,6 +7,10 @@ DESCRIPTION="Lua is a powerful, light-weight programming language designed
 for extending applications. Lua is also frequently used as a general-purpose,
 stand-alone language."
 HOMEPAGE="https://www.lua.org/"
+LICENSE="MIT"
+# cf. https://www.cygwin.com/packaging-hint-files.html#pvr-src.hint
+#     https://spdx.org/licenses/MIT.html
+
 SRC_URI="https://www.lua.org/ftp/lua-${VERSION}.tar.gz"
 PATCH_URI="
   5.4.3-Makefile.patch
